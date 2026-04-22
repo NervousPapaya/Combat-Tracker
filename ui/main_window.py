@@ -1,7 +1,7 @@
 import sys
 from services.combat_manager import CombatManager
+from services.maths import safe_eval, is_whole_number
 from models.combatant import Combatant
-import operator
 from ui.abilitywidget import AbilityTrackerWidget
 from PySide6.QtCore import Qt
 
@@ -11,15 +11,9 @@ from PySide6.QtWidgets import (QMainWindow, QApplication, QWidget, QTableWidget,
 
 from PySide6.QtGui import QAction
 
-#Setting up a save evaluation function.
-# This ensures that users cannot run code in the evaluation cells
-def safe_eval(expr):
-    ops = {'+': operator.add, '-': operator.sub, '*': operator.mul, '/': operator.truediv}
-    for op in ops:
-        if op in expr:
-            left, right = expr.split(op)
-            return int(ops[op](int(left), int(right)))
-    return expr #Returns expression if nothing matches
+
+def format_initiative(x):
+    return str(int(x)) if is_whole_number(x) else str(x)
 
 # Helper function to create labeled input
 def labeled_input(label_text, widget):
@@ -118,10 +112,6 @@ class MainWindow(QMainWindow):
 
         # Allow multiple rows to be selected
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
-
-        #Creating a button for removing combatants
-#        self.remove_button = QPushButton("Remove")
-#        self.remove_button.clicked.connect(self.on_remove_clicked)
 
         #Input Layout
         input_layout = QHBoxLayout()
@@ -345,7 +335,8 @@ class MainWindow(QMainWindow):
         ac_item = QTableWidgetItem(str(combatant.ac))
         ac_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
 
-        initiative_item = QTableWidgetItem(str(combatant.initiative))
+        initiative = format_initiative(combatant.initiative)
+        initiative_item = QTableWidgetItem(initiative)
         initiative_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
 
         damage_item = QTableWidgetItem(str(combatant.damage_taken))
@@ -460,12 +451,6 @@ class MainWindow(QMainWindow):
             self.table.setHorizontalHeaderItem(spell_col_index, QTableWidgetItem("Spell Slots"))
             self.columns["Spell Slots"] = spell_col_index
 
-            # if self.abilities_column:
-            #     target_col = current_cols-1
-            #     self.table.setHorizontalHeaderItem(target_col, QTableWidgetItem("Spell Slots"))
-            #     self.columns["Spell Slots"] = target_col
-            # else:
-
             self.spell_slots_column = True
 
     def ensure_abilities_column(self):
@@ -523,18 +508,18 @@ class MainWindow(QMainWindow):
 
         try:
             if column == 0:
-                combatant.name = edited_text
+                self.manager.set_combatant_name(combatant_id,edited_text)
             elif column == 1: #Checking if the edited column was initiative
-                #We store the new initiative first, because the sort table will delete it  #Possibly a deprecated comment?
-                new_initiative = int(edited_item.text())
-                combatant.initiative = int(edited_text)
+                initiative = float(edited_text)
+                self.manager.set_combatant_initiative(combatant_id,initiative)
                 if any(combatant.initiative >= com.initiative for com in self.manager.combatants.values()):
                     self.sort_table_initiative()
                 return
             elif column == 2: #Checking if the edited column was AC
                 combatant.ac = int(edited_text)
             elif column == 3:  # Checking if the edited column was damage taken
-                combatant.damage_taken = safe_eval(edited_text)
+                damage_taken = safe_eval(edited_text)
+                self.manager.set_combatant_damage(combatant_id,damage_taken)
             elif column == 4:  # Checking if the edited column was Hp total
                 combatant.hp_total = int(edited_text)
             elif column == 5:

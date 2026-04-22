@@ -4,6 +4,8 @@ from models.combatant import Combatant, Ability
 import json
 from filehandling.filehandling import make_output, create_output_path
 from dataclasses import asdict
+from services.maths import is_whole_number
+
 
 class CombatManager:
     @property
@@ -93,13 +95,11 @@ class CombatManager:
         self.combatants[combatant.id] = combatant
 
 
-
     def sort_by_initiative(self):
         self.combatants.sort(key=lambda c: (-c.initiative, c.name)) #This sorts by initiative first (the minus is to ensure descending, and then name
 
     def get_turn_order(self):
         return [c.name for c in self.combatants]
-
 
     #Since having moved to storing the combatants as a dictionary, with cid as keys, the following method could probably be replaced
     def get_combatant_by_id(self,cid):
@@ -108,6 +108,45 @@ class CombatManager:
     def remove_combatant_by_id(self, cid):
         return self.combatants.pop(cid, None) is not None
 
+    def set_combatant_name(self,cid,name):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.name = name
+
+    def get_combatant_name(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.name
+
+    def set_combatant_initiative(self,cid,initiative):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.initiative = initiative
+
+    def get_combatant_initiative(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.initiative
+
+    def set_combatant_ac(self,cid,ac):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.ac = ac
+
+    def get_combatant_ac(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.ac
+
+    def set_combatant_hp_tot(self,cid,hp):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.hp_total = hp
+
+    def get_combatant_hp_tot(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.hp_total
+
+    def set_combatant_damage(self,cid,hp):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.damage_taken = hp
+
+    def get_combatant_damage(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.damage_taken
 
 
 

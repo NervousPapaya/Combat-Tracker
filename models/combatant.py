@@ -9,7 +9,7 @@ class Ability:
 @dataclass
 class Combatant:
     name: str
-    initiative: int
+    initiative: float
     ac: int
     hp_total: int
     #Setting up an id to use for identification.
