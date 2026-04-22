@@ -1,6 +1,8 @@
 import sys
 from services.combat_manager import CombatManager
 from services.maths import safe_eval, is_whole_number
+from services.undo_manager import UndoManager
+from commands.commands import SetNameCommand, SetACCommand, SetDamageCommand, SetInitiativeCommand, SetHPTotCommand
 from models.combatant import Combatant
 from ui.abilitywidget import AbilityTrackerWidget
 from PySide6.QtCore import Qt
@@ -10,6 +12,7 @@ from PySide6.QtWidgets import (QMainWindow, QApplication, QWidget, QTableWidget,
                                QSpinBox, QMenu, QLabel, QDialog, QDialogButtonBox, QMenuBar, QFileDialog, QMessageBox)
 
 from PySide6.QtGui import QAction
+from functools import partial
 
 
 def format_initiative(x):
@@ -30,7 +33,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("D&D Combat Tracker")
         self.setGeometry(100,100,600,400)
 
-        self.manager = CombatManager()
+        self.comb_manager = CombatManager()
+        self.undo_manager = UndoManager()
 
         self.rebuilding = False
         # Menu Bar
@@ -67,12 +71,6 @@ class MainWindow(QMainWindow):
 
         #Setting up a variable to check if we want an abilities column
         self.abilities_column = False
-
-        #Settin up a signal for when cells are clicked
-        # This stores the name in the row clicked.
-        # This will allow us to update the correct combatant in the manager.
-        # This has been removed, since we now store the old names in the dictionary when adding the line
-#        self.table.cellClicked.connect(self.on_cell_clicked)
 
         #Setting up a signal for when cells are changed.
         # This automatically sends row and column to the on_cell_changed method
@@ -149,7 +147,7 @@ class MainWindow(QMainWindow):
         encounter_name = None
 
         # Call the CombatManager method
-        self.manager.save_encounter(filename, encounter_name)
+        self.comb_manager.save_encounter(filename, encounter_name)
 
     def save_encounter_as(self):
         pass
@@ -166,7 +164,7 @@ class MainWindow(QMainWindow):
         if filename:  # Only proceed if the user picked a file
             try:
                 # Tell the combat manager to load the encounter from this file
-                self.manager.load_encounter(filename)
+                self.comb_manager.load_encounter(filename)
 
                 # After loading, rebuild the table UI
                 self.sort_table_initiative()
@@ -183,40 +181,82 @@ class MainWindow(QMainWindow):
     #This method handles the right click context menu !!!
     def show_context_menu(self, pos):
         clicked_row = self.table.rowAt(pos.y())
-        #First we check if the user actually clicked a row
-        if clicked_row == -1:
-            return #This takes care of clicks outside any row
-        elif self.table.item(clicked_row,0) is None:
-            return
+        #First we set a flag based on whether the user actually clicked a row
+        has_row = clicked_row != -1 and self.table.item(clicked_row,0) is not None
 
         menu = QMenu(self.table) #Note to self: Ensure stuff like QMenu has a parent i.e. includes self.table. Otherwise, we risk weird floating box errors or rendering behind table.
-        remove_action = menu.addAction("Remove Combatant")
-        duplicate_action = menu.addAction("Duplicate Combatant")
-        sort_action = menu.addAction("Sort By Initiative")
-        spells_action = menu.addAction("Add/Remove Spell Slots")
-        abilities_action = menu.addAction("Add Ability")
-        action = menu.exec(self.table.viewport().mapToGlobal(pos))
+
+        undo_action = menu.addAction("Undo")
+        undo_action.triggered.connect(self.handle_undo)
+
+        redo_action = menu.addAction("Redo")
+        redo_action.triggered.connect(self.handle_redo)
+
+        # disable row actions if no valid row
+ #       for a in (remove_action, duplicate_action, spells_action, abilities_action):
+  #          a.setEnabled(has_row)
+
+        if not self.undo_manager.undo_stack:
+            undo_action.setEnabled(False)
+
+        if not self.undo_manager.redo_stack:
+            redo_action.setEnabled(False)
+
+   #     action = menu.exec(self.table.viewport().mapToGlobal(pos))
+
+        if has_row:
+            menu.addSeparator()
+            remove_action = menu.addAction("Remove Combatant")
+            remove_action.triggered.connect(partial(self.handle_remove_combatant,clicked_row))
+
+            duplicate_action = menu.addAction("Duplicate Combatant")
+            duplicate_action.triggered.connect(partial(self.duplicate_combatant_in_table,clicked_row))
+            sort_action = menu.addAction("Sort By Initiative")
+            sort_action.triggered.connect(self.sort_table_initiative)
+            spells_action = menu.addAction("Add/Remove Spell Slots")
+            spells_action.triggered.connect(partial(self.open_spell_slots_dialogue,clicked_row))
+
+            abilities_action = menu.addAction("Add Ability")
+            abilities_action.triggered.connect(partial(self.open_abilities_dialogue,clicked_row))
+
+        menu.exec(self.table.viewport().mapToGlobal(pos))
 
         #At this point, we run a method depending on the button clicked
-        if action == remove_action:
-            selected_indices = self.table.selectionModel().selectedRows() #Setting up a collection of selected rows to possibly delete multiple combatants
-            #We check if the user has selected multiple rows, and if so we remove those
-            if selected_indices:
-                for index in sorted(selected_indices,key=lambda x: x.row(), reverse=True):
-                   row = index.row()
-                   self.remove_combatant_from_table(row)
-            else: #Else we simply delete the clicked row
-                self.remove_combatant_from_table(clicked_row)
-            print(f"Combatant in row {clicked_row} removed")
-        elif action == duplicate_action:
-            self.duplicate_combatant_in_table(clicked_row)
-            print(f"Duplicate row {clicked_row} clicked")
-        elif action == sort_action:
-            self.sort_table_initiative()
-        elif action == spells_action:
-            self.open_spell_slots_dialogue(clicked_row)
-        elif action == abilities_action:
-            self.open_abilities_dialogue(clicked_row)
+        # if action == remove_action:
+        #     selected_indices = self.table.selectionModel().selectedRows() #Setting up a collection of selected rows to possibly delete multiple combatants
+        #     #We check if the user has selected multiple rows, and if so we remove those
+        #     if selected_indices:
+        #         for index in sorted(selected_indices,key=lambda x: x.row(), reverse=True):
+        #            self.remove_combatant_from_table(index.row())
+        #     else: #Else we simply delete the clicked row
+        #         self.remove_combatant_from_table(clicked_row)
+        #     print(f"Combatant in row {clicked_row} removed")
+        # elif action == duplicate_action:
+        #     self.duplicate_combatant_in_table(clicked_row)
+        #     print(f"Duplicate row {clicked_row} clicked")
+        # elif action == sort_action:
+        #     self.sort_table_initiative()
+        # elif action == spells_action:
+        #     self.open_spell_slots_dialogue(clicked_row)
+        # elif action == abilities_action:
+        #     self.open_abilities_dialogue(clicked_row)
+
+    def handle_undo(self):
+        self.undo_manager.undo()
+        self.sort_table_initiative()
+
+    def handle_redo(self):
+        self.undo_manager.redo()
+        self.sort_table_initiative()
+
+    def handle_remove_combatant(self,clicked_row):
+        selected_indices = self.table.selectionModel().selectedRows()  # Setting up a collection of selected rows to possibly delete multiple combatants
+        # We check if the user has selected multiple rows, and if so we remove those
+        if selected_indices:
+            for index in sorted(selected_indices, key=lambda x: x.row(), reverse=True):
+                self.remove_combatant_from_table(index.row())
+        else:  # Else we simply delete the clicked row
+            self.remove_combatant_from_table(clicked_row)
 
     # this helper method holds the spell slots dialogue
     def open_spell_slots_dialogue(self,clicked_row):
@@ -246,10 +286,10 @@ class MainWindow(QMainWindow):
             # Then we update the combatant based on the input
             level = caster_level_input.value()
             combatant_id = self.fetch_combatant_id(clicked_row)
-            self.manager.add_caster_level(combatant_id, caster_level=level)
+            self.comb_manager.add_caster_level(combatant_id, caster_level=level)
 
             # Then we render the spell slots based on the combat manager
-            combatant = self.manager.get_combatant_by_id(combatant_id)
+            combatant = self.comb_manager.get_combatant_by_id(combatant_id)
             spell_slots = self.spell_slots_to_list(combatant.spell_slot_dict)
             col = self.columns["Spell Slots"]
             self.set_ability_widget(clicked_row, col, combatant_id, spell_slots,True)
@@ -294,10 +334,10 @@ class MainWindow(QMainWindow):
             # Then we update the combatant based on the input
             ability_name = ability_name_input.text()
             maximum_uses = maximum_uses_input.value()
-            self.manager.add_ability(combatant_id, ability_name,maximum_uses)
+            self.comb_manager.add_ability(combatant_id, ability_name,maximum_uses)
 
             # Now we render the abilities based on the data in the combat manager
-            combatant = self.manager.get_combatant_by_id(combatant_id)
+            combatant = self.comb_manager.get_combatant_by_id(combatant_id)
             abilities = sorted(self.abilities_to_list(combatant.ability_dict))
 
             col = self.columns["Abilities"]
@@ -312,7 +352,7 @@ class MainWindow(QMainWindow):
 
     def set_ability_widget(self,row: int,col: int ,combatant_id ,abilities,is_spells=False):
         widget = AbilityTrackerWidget(
-            self.manager,
+            self.comb_manager,
             combatant_id,
             abilities,
             is_spells
@@ -360,7 +400,7 @@ class MainWindow(QMainWindow):
         caster_level = combatant.caster_level
         if caster_level >= 1:
             self.ensure_spell_slots_column()
-            spell_slots = self.spell_slots_to_list(self.manager.full_caster_progression[caster_level])
+            spell_slots = self.spell_slots_to_list(self.comb_manager.full_caster_progression[caster_level])
             col = self.columns["Spell Slots"]
             self.set_ability_widget(row_index,col, combatant.id, spell_slots,True)
 
@@ -373,18 +413,18 @@ class MainWindow(QMainWindow):
 
     def remove_combatant_from_table(self,row):
         combatant_id = self.fetch_combatant_id(row)
-        self.manager.remove_combatant_by_id(combatant_id)
+        self.comb_manager.remove_combatant_by_id(combatant_id)
         self.table.removeRow(row)
 
 
     def duplicate_combatant_in_table(self,row):
         combatant_id = self.fetch_combatant_id(row)
-        original = self.manager.get_combatant_by_id(combatant_id)
+        original = self.comb_manager.get_combatant_by_id(combatant_id)
 
         #setting up a duplicate
         duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
 
-        self.manager.add_combatant(duplicate)
+        self.comb_manager.add_combatant(duplicate)
         self.sort_table_initiative()
 
     def update_combatant_row(self, row: int, combatant: Combatant):
@@ -405,7 +445,8 @@ class MainWindow(QMainWindow):
 
         self.table.item(row,0).setText(combatant.name)
         self.table.item(row, 0).setData(Qt.UserRole, combatant.id)
-        self.table.item(row,1).setText(str(combatant.initiative))
+        initiative = format_initiative(combatant.initiative)
+        self.table.item(row,1).setText(initiative)
         self.table.item(row,2).setText(str(combatant.ac))
         self.table.item(row,3).setText(str(combatant.damage_taken))
         self.table.item(row,4).setText(str(combatant.hp_total))
@@ -414,13 +455,13 @@ class MainWindow(QMainWindow):
         """This method exists to give a combatant in a certain row spell slots."""
         #Checking that the row does not have an empty name
         combatant_id = self.fetch_combatant_id(row)
-        self.manager.add_caster_level(combatant_id,caster_level = level)
+        self.comb_manager.add_caster_level(combatant_id,caster_level = level)
 
     def give_combatant_ability(self, row: int, ability_name: str, maximum_uses: int):
         """This method exists to give a combatant in a certain row an ability."""
         #Checking that the row does not have an empty name
         combatant_id = self.fetch_combatant_id(row)
-        self.manager.add_ability(combatant_id,ability_name,maximum_uses)
+        self.comb_manager.add_ability(combatant_id,ability_name,maximum_uses)
 
     def fetch_combatant_id(self,row):
         name_item = self.table.item(row,0)
@@ -480,7 +521,7 @@ class MainWindow(QMainWindow):
         hp = self.hp_total_input.value()
         if name:
             combatant = Combatant(name,initiative,ac,hp)
-            self.manager.add_combatant(combatant)
+            self.comb_manager.add_combatant(combatant)
 
             #After adding, clears input
             self.name_input.clear()
@@ -498,7 +539,7 @@ class MainWindow(QMainWindow):
         # Get the name of the combatant in this row
 
         combatant_id = self.fetch_combatant_id(row)
-        combatant = self.manager.get_combatant_by_id(combatant_id)
+        combatant = self.comb_manager.get_combatant_by_id(combatant_id)
 
         # Get the new value typed by the user
         edited_item = self.table.item(row, column)
@@ -508,22 +549,23 @@ class MainWindow(QMainWindow):
 
         try:
             if column == 0:
-                self.manager.set_combatant_name(combatant_id,edited_text)
+                self.undo_manager.do(SetNameCommand(manager=self.comb_manager,cid=combatant_id,new_name=edited_text))
+                #self.comb_manager.set_combatant_name(combatant_id,edited_text)
             elif column == 1: #Checking if the edited column was initiative
                 initiative = float(edited_text)
-                self.manager.set_combatant_initiative(combatant_id,initiative)
-                if any(combatant.initiative >= com.initiative for com in self.manager.combatants.values()):
+                self.comb_manager.set_combatant_initiative(combatant_id,initiative)
+                if any(combatant.initiative >= com.initiative for com in self.comb_manager.combatants.values()):
                     self.sort_table_initiative()
                 return
             elif column == 2: #Checking if the edited column was AC
-                combatant.ac = int(edited_text)
+                self.comb_manager.set_combatant_ac(combatant_id,int(edited_text))
             elif column == 3:  # Checking if the edited column was damage taken
                 damage_taken = safe_eval(edited_text)
-                self.manager.set_combatant_damage(combatant_id,damage_taken)
+                self.comb_manager.set_combatant_damage(combatant_id,damage_taken)
             elif column == 4:  # Checking if the edited column was Hp total
-                combatant.hp_total = int(edited_text)
+                self.comb_manager.set_combatant_hp_tot(combatant_id,int(edited_text))
             elif column == 5:
-                combatant.status = edited_text
+                self.comb_manager.set_combatant_status(combatant_id,edited_text)
 
         except Exception:
             #This ignores any invalid inputs, such as writing abc in the damage taken column.
@@ -531,8 +573,10 @@ class MainWindow(QMainWindow):
             self.update_combatant_row(row,combatant)
             return
 
-        if column != 1:
-            self.update_combatant_row(row, combatant)
+        finally:
+            if column != 1:
+                combatant = self.comb_manager.get_combatant_by_id(combatant_id)
+                self.update_combatant_row(row, combatant)
         #This part refreshes the ui with the information from the combat manager
 
 
@@ -545,8 +589,8 @@ class MainWindow(QMainWindow):
         self.table.blockSignals(True)
         try:
             self.table.setRowCount(0)
-            for comb_id in self.manager.turn_order:
-                self.add_combatant_to_table(self.manager.get_combatant_by_id(comb_id))
+            for comb_id in self.comb_manager.turn_order:
+                self.add_combatant_to_table(self.comb_manager.get_combatant_by_id(comb_id))
 
         finally:
             # At the end, we unblock the signals

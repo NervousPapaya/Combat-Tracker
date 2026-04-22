@@ -1,4 +1,4 @@
-from base import Command
+from commands.base import Command
 
 class SetNameCommand(Command):
     def __init__(self, manager, cid, new_name):

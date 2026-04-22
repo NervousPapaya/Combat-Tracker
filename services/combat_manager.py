@@ -4,7 +4,6 @@ from models.combatant import Combatant, Ability
 import json
 from filehandling.filehandling import make_output, create_output_path
 from dataclasses import asdict
-from services.maths import is_whole_number
 
 
 class CombatManager:
@@ -12,7 +11,7 @@ class CombatManager:
     def turn_order(self):
         """This property stores the turn order.
         It is a list of the combatant ids sorted in descending by initiative."""
-        return [c.id for c in sorted(self.combatants.values(), key=lambda c: (-c.initiative, c.id))]
+        return [c.id for c in sorted(self.combatants.values(), key=lambda c: (-c.initiative, c.name))]
 
     # Setting up a dictionary of dictionaries which stores spellcaster  based on caster level as keys.
     full_caster_progression = {0: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0},
@@ -148,6 +147,13 @@ class CombatManager:
         combatant = self.get_combatant_by_id(cid)
         return combatant.damage_taken
 
+    def set_combatant_status(self,cid,status):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.status = status
+
+    def get_combatant_status(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.status
 
 
     #The * forces the following arguments to be keyword only
