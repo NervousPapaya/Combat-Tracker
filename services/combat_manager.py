@@ -93,12 +93,12 @@ class CombatManager:
 
         self.combatants[combatant.id] = combatant
 
+    def duplicate_combatant(self,cid):
+        original = self.get_combatant_by_id(cid)
+        #setting up a duplicate
+        duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
 
-    def sort_by_initiative(self):
-        self.combatants.sort(key=lambda c: (-c.initiative, c.name)) #This sorts by initiative first (the minus is to ensure descending, and then name
-
-    def get_turn_order(self):
-        return [c.name for c in self.combatants]
+        self.add_combatant(duplicate)
 
     #Since having moved to storing the combatants as a dictionary, with cid as keys, the following method could probably be replaced
     def get_combatant_by_id(self,cid):
@@ -106,6 +106,9 @@ class CombatManager:
 
     def remove_combatant_by_id(self, cid):
         return self.combatants.pop(cid, None) is not None
+
+    def update_combatant_by_id(self,cid,combatant):
+        self.combatants[cid] = combatant
 
     def set_combatant_name(self,cid,name):
         combatant = self.get_combatant_by_id(cid)
@@ -259,63 +262,12 @@ class CombatManager:
         #             combatant.ability_dict[ability_name] = Ability(left=comb[ability_name][0], max=comb[ability_name][1])
         #     self.add_combatant(combatant)
 
-# Methods past this line are in a holding pattern. They aren't used yet and are up for deletion
+# Methods past this line are in a holding pattern. They aren't used and are up for deletion
 # ----------------------------------------------------------------------------------------------
 
-    def change_combatant_name(self, oldname: str, newname: str):
-        for combatant in self.combatants:
-            if combatant.name == oldname:
-                combatant.name = newname
-                return True
-        return False
 
-    def change_combatant_initiative(self,name: str, amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                combatant.initiative = amount
-                return True
-        return False
+    def sort_by_initiative(self):
+        self.combatants.sort(key=lambda c: (-c.initiative, c.name)) #This sorts by initiative first (the minus is to ensure descending, and then name
 
-    def change_combatant_ac(self,name: str, amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                combatant.ac = amount
-                return True
-        return False
-
-    def change_combatant_damage(self,name: str, amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                combatant.change_damage(amount)
-                return True
-        return False
-
-    def change_combatant_hp(self,name: str, amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                combatant.hp_total = amount
-                return True
-        return False
-
-    def remove_combatant(self, name: str):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                self.combatants.remove(combatant)
-                return True
-        return False
-
-    #The following two methods can be removed as they are old and unused
-    def damage_combatant(self,name: str,amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                    combatant.change_damage(amount)
-                    return True
-        return False
-
-    def heal_combatant(self,name: str,amount: int):
-        for combatant in self.combatants:
-            if combatant.name == name:
-                    combatant.heal(amount)
-                    return True
-        return False
-
+    def get_turn_order(self):
+        return [c.name for c in self.combatants]

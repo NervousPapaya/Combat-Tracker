@@ -58,16 +58,29 @@ class SetHPTotCommand(Command):
 
 
 class SetDamageCommand(Command):
-    def __init__(self, manager, cid, new_hp):
+    def __init__(self, manager, cid, new_dmg):
         self.manager = manager
         self.cid = cid
-        self.new_hp = new_hp
-        self.old_hp = None
+        self.new_dmg = new_dmg
+        self.old_dmg = None
 
     def execute(self):
-        self.old_hp = self.manager.get_combatant_damage(self.cid)
-        self.manager.set_combatant_damage(self.cid,self.new_hp)
+        self.old_dmg = self.manager.get_combatant_damage(self.cid)
+        self.manager.set_combatant_damage(self.cid,self.new_dmg)
 
     def undo(self):
-        self.manager.set_combatant_damage(self.cid,self.old_hp)
+        self.manager.set_combatant_damage(self.cid,self.old_dmg)
 
+class SetStatusCommand(Command):
+    def __init__(self, manager, cid, new_status):
+        self.manager = manager
+        self.cid = cid
+        self.new_status = new_status
+        self.old_status = None
+
+    def execute(self):
+        self.old_status = self.manager.get_combatant_status(self.cid)
+        self.manager.set_combatant_status(self.cid,self.new_status)
+
+    def undo(self):
+        self.manager.set_combatant_status(self.cid,self.old_status)

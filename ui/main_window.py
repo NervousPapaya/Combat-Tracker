@@ -1,8 +1,10 @@
 import sys
+import copy
 from services.combat_manager import CombatManager
 from services.maths import safe_eval, is_whole_number
 from services.undo_manager import UndoManager
-from commands.commands import SetNameCommand, SetACCommand, SetDamageCommand, SetInitiativeCommand, SetHPTotCommand
+from commands.commands import SetNameCommand, SetACCommand, SetDamageCommand, SetInitiativeCommand, SetHPTotCommand, \
+    SetStatusCommand
 from models.combatant import Combatant
 from ui.abilitywidget import AbilityTrackerWidget
 from PySide6.QtCore import Qt
@@ -31,7 +33,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("D&D Combat Tracker")
-        self.setGeometry(100,100,600,400)
+        self.setGeometry(100,100,900,600)
 
         self.comb_manager = CombatManager()
         self.undo_manager = UndoManager()
@@ -64,6 +66,7 @@ class MainWindow(QMainWindow):
 
         #Keeping a column mapping
         self.columns ={"Name": 0 , "Initiative": 1, "AC": 2, "Damage Taken": 3, "Total HP": 4, "Status": 5}
+
 
 
         #setting up a variable to check if we want a spell slot column
@@ -192,18 +195,14 @@ class MainWindow(QMainWindow):
         redo_action = menu.addAction("Redo")
         redo_action.triggered.connect(self.handle_redo)
 
-        # disable row actions if no valid row
- #       for a in (remove_action, duplicate_action, spells_action, abilities_action):
-  #          a.setEnabled(has_row)
-
         if not self.undo_manager.undo_stack:
             undo_action.setEnabled(False)
 
         if not self.undo_manager.redo_stack:
             redo_action.setEnabled(False)
 
-   #     action = menu.exec(self.table.viewport().mapToGlobal(pos))
-
+        #Position sensitive part of menu.
+        #Only rendered if a row is clicked.
         if has_row:
             menu.addSeparator()
             remove_action = menu.addAction("Remove Combatant")
@@ -220,26 +219,6 @@ class MainWindow(QMainWindow):
             abilities_action.triggered.connect(partial(self.open_abilities_dialogue,clicked_row))
 
         menu.exec(self.table.viewport().mapToGlobal(pos))
-
-        #At this point, we run a method depending on the button clicked
-        # if action == remove_action:
-        #     selected_indices = self.table.selectionModel().selectedRows() #Setting up a collection of selected rows to possibly delete multiple combatants
-        #     #We check if the user has selected multiple rows, and if so we remove those
-        #     if selected_indices:
-        #         for index in sorted(selected_indices,key=lambda x: x.row(), reverse=True):
-        #            self.remove_combatant_from_table(index.row())
-        #     else: #Else we simply delete the clicked row
-        #         self.remove_combatant_from_table(clicked_row)
-        #     print(f"Combatant in row {clicked_row} removed")
-        # elif action == duplicate_action:
-        #     self.duplicate_combatant_in_table(clicked_row)
-        #     print(f"Duplicate row {clicked_row} clicked")
-        # elif action == sort_action:
-        #     self.sort_table_initiative()
-        # elif action == spells_action:
-        #     self.open_spell_slots_dialogue(clicked_row)
-        # elif action == abilities_action:
-        #     self.open_abilities_dialogue(clicked_row)
 
     def handle_undo(self):
         self.undo_manager.undo()
@@ -419,12 +398,13 @@ class MainWindow(QMainWindow):
 
     def duplicate_combatant_in_table(self,row):
         combatant_id = self.fetch_combatant_id(row)
-        original = self.comb_manager.get_combatant_by_id(combatant_id)
-
-        #setting up a duplicate
-        duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
-
-        self.comb_manager.add_combatant(duplicate)
+        self.comb_manager.duplicate_combatant(combatant_id)
+        # original = self.comb_manager.get_combatant_by_id(combatant_id)
+        #
+        # #setting up a duplicate
+        # duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
+        #
+        # self.comb_manager.add_combatant(duplicate)
         self.sort_table_initiative()
 
     def update_combatant_row(self, row: int, combatant: Combatant):
@@ -539,7 +519,8 @@ class MainWindow(QMainWindow):
         # Get the name of the combatant in this row
 
         combatant_id = self.fetch_combatant_id(row)
-        combatant = self.comb_manager.get_combatant_by_id(combatant_id)
+        #We copy the combatant for back-up purposes in case a roll-back is needed
+        combatant = copy.deepcopy(self.comb_manager.get_combatant_by_id(combatant_id))
 
         # Get the new value typed by the user
         edited_item = self.table.item(row, column)
@@ -553,31 +534,48 @@ class MainWindow(QMainWindow):
                 #self.comb_manager.set_combatant_name(combatant_id,edited_text)
             elif column == 1: #Checking if the edited column was initiative
                 initiative = float(edited_text)
-                self.comb_manager.set_combatant_initiative(combatant_id,initiative)
+                self.undo_manager.do(SetInitiativeCommand(manager=self.comb_manager,cid=combatant_id,new_initiative=initiative))
+                #self.comb_manager.set_combatant_initiative(combatant_id,initiative)
                 if any(combatant.initiative >= com.initiative for com in self.comb_manager.combatants.values()):
                     self.sort_table_initiative()
                 return
             elif column == 2: #Checking if the edited column was AC
-                self.comb_manager.set_combatant_ac(combatant_id,int(edited_text))
+                ac=int(edited_text)
+                self.undo_manager.do(SetACCommand(manager=self.comb_manager,cid=combatant_id,new_ac=ac))
+                #self.comb_manager.set_combatant_ac(combatant_id,int(edited_text))
             elif column == 3:  # Checking if the edited column was damage taken
                 damage_taken = safe_eval(edited_text)
-                self.comb_manager.set_combatant_damage(combatant_id,damage_taken)
+                self.undo_manager.do(SetDamageCommand(manager=self.comb_manager,cid=combatant_id,new_dmg=damage_taken))
+                #self.comb_manager.set_combatant_damage(combatant_id,damage_taken)
             elif column == 4:  # Checking if the edited column was Hp total
-                self.comb_manager.set_combatant_hp_tot(combatant_id,int(edited_text))
+                hp_tot = int(edited_text)
+                self.undo_manager.do(SetHPTotCommand(manager=self.comb_manager,cid=combatant_id,new_hp=hp_tot))
+                #self.comb_manager.set_combatant_hp_tot(combatant_id,int(edited_text))
             elif column == 5:
-                self.comb_manager.set_combatant_status(combatant_id,edited_text)
+                self.undo_manager.do(SetStatusCommand(manager=self.comb_manager,cid=combatant_id,new_status=edited_text))
+                #self.comb_manager.set_combatant_status(combatant_id,edited_text)
 
-        except Exception:
-            #This ignores any invalid inputs, such as writing abc in the damage taken column.
-            #Furthermore, it just returns the original value
-            self.update_combatant_row(row,combatant)
+        except Exception as e:
+            #This is intended to handle invalid inputs, such as writing abc in the damage taken column.
+            #In case of an error, just returns the original value in the UI and ensures the combat manage is reset
+            print(f"Error: {e}. Rolling back UI and combat manager.")
+            self.comb_manager.update_combatant_by_id(combatant_id, combatant)
+            self.rebuilding = True
+            try:
+                self.update_combatant_row(row,combatant)
+            finally:
+                self.rebuilding = False
             return
 
         finally:
+            # This part refreshes the ui with the information from the combat manager
             if column != 1:
                 combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-                self.update_combatant_row(row, combatant)
-        #This part refreshes the ui with the information from the combat manager
+                self.rebuilding = True
+                try:
+                    self.update_combatant_row(row, combatant)
+                finally:
+                    self.rebuilding = False
 
 
     def sort_table_initiative(self):
