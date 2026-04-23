@@ -17,6 +17,7 @@ class Combatant:
     id: uuid.UUID = field(default_factory=uuid.uuid4)
 
     damage_taken: int = 0
+    damage_expr: str = "0"
     status: str = ""
     caster_level: int = 0
     #We set up a dictionary to store spell slots if necessary.

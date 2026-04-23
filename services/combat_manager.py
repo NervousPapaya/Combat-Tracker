@@ -142,13 +142,21 @@ class CombatManager:
         combatant = self.get_combatant_by_id(cid)
         return combatant.hp_total
 
-    def set_combatant_damage(self,cid,hp):
+    def set_combatant_damage(self,cid,dmg: int):
         combatant = self.get_combatant_by_id(cid)
-        combatant.damage_taken = hp
+        combatant.damage_taken = dmg
 
     def get_combatant_damage(self,cid):
         combatant = self.get_combatant_by_id(cid)
         return combatant.damage_taken
+
+    def set_combatant_damage_expr(self,cid,expr: str):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.damage_expr = expr
+
+    def get_combatant_damage_expr(self,cid):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.damage_expr
 
     def set_combatant_status(self,cid,status):
         combatant = self.get_combatant_by_id(cid)

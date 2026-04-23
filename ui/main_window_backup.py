@@ -1,11 +1,9 @@
 import sys
 import copy
 from services.combat_manager import CombatManager
-from services.maths import is_whole_number
+from services.maths import safe_eval, is_whole_number
 from services.undo_manager import UndoManager
-from ui.damage_delegate import DamageDelegate
-from ui.themes import apply_theme,DARK_THEME,LIGHT_THEME
-from commands.commands import SetNameCommand, SetACCommand, SetInitiativeCommand, SetHPTotCommand, \
+from commands.commands import SetNameCommand, SetACCommand, SetDamageCommand, SetInitiativeCommand, SetHPTotCommand, \
     SetStatusCommand
 from models.combatant import Combatant
 from ui.abilitywidget import AbilityTrackerWidget
@@ -13,11 +11,10 @@ from PySide6.QtCore import Qt
 
 from PySide6.QtWidgets import (QMainWindow, QApplication, QWidget, QTableWidget,
                                QTableWidgetItem, QVBoxLayout, QLineEdit, QPushButton, QHBoxLayout,
-                               QSpinBox, QMenu, QLabel, QDialog, QDialogButtonBox, QFileDialog, QMessageBox)
+                               QSpinBox, QMenu, QLabel, QDialog, QDialogButtonBox, QMenuBar, QFileDialog, QMessageBox)
 
-from PySide6.QtGui import QAction, QColor
+from PySide6.QtGui import QAction
 from functools import partial
-
 
 
 def format_initiative(x):
@@ -61,25 +58,14 @@ class MainWindow(QMainWindow):
         save_as_action.triggered.connect(self.save_encounter_as)
         self.file_menu.addAction(save_as_action)
 
-        # Adding a settings menu to the menu bar
-        self.settings_menu = self.menu_bar.addMenu("Settings")
-        theme_menu = self.settings_menu.addMenu("Theme")
-
-        light_action = QAction("Light", self)
-        dark_action = QAction("Dark", self)
-
-        light_action.triggered.connect(self.apply_light_theme)
-        dark_action.triggered.connect(self.apply_dark_theme)
-
-        theme_menu.addAction(light_action)
-        theme_menu.addAction(dark_action)
-
-
 
         #Setting Up the Table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["Name", "Initiative", "AC", "Damage Taken", "Total HP", "Status"])
+
+        #Keeping a column mapping
+        self.columns ={"Name": 0 , "Initiative": 1, "AC": 2, "Damage Taken": 3, "Total HP": 4, "Status": 5}
 
         #This dictionary keeps a master list of all possible columns and their relative positions
         self.column_priority = {
@@ -88,21 +74,20 @@ class MainWindow(QMainWindow):
             "AC": 2,
             "Damage": 3,
             "HP": 4,
-            "Condition": 5,
-            "Status": 6,
+            "Status": 5,
+            "Comment": 6,
             "Spell Slots": 7,
             "Abilities": 10,
         }
 
         #This list is the master of which columns are currently displayed
         self.active_columns = ["Name", "Initiative", "AC", "Damage", "HP", "Status"]
-        self.active_columns = set(self.active_columns)
+
         ordered_columns = sorted(
             self.active_columns,
             key=lambda name: self.column_priority[name]
         )
-        #The following dictionary allows us to get a columns index by its name
-        #Note: This is NOT dynamic and must be updated after each creation of a column. The method for creating columns has this resorting built in.
+
         self.col_index = {name: i for i, name in enumerate(ordered_columns)}
 
         #setting up a variable to check if we want a spell slot column
@@ -111,18 +96,9 @@ class MainWindow(QMainWindow):
         #Setting up a variable to check if we want an abilities column
         self.abilities_column = False
 
-        #Setting up a signal for when cells are double-clicked.
-        self.table.itemDoubleClicked.connect(self.on_item_double_clicked)
-
         #Setting up a signal for when cells are changed.
         # This automatically sends row and column to the on_cell_changed method
         self.table.cellChanged.connect(self.on_cell_changed)
-
-        #Setting a separate delegate for handling edits in the damage column
-        self.table.setItemDelegateForColumn(
-            self.col_index["Damage"],
-            DamageDelegate(self, self.comb_manager)
-        )
 
         # Input Widgets
         self.name_input = QLineEdit()
@@ -265,7 +241,6 @@ class MainWindow(QMainWindow):
 
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
-    #These three handler methods handle parts of the context menu
     def handle_undo(self):
         self.undo_manager.undo()
         self.sort_table_initiative()
@@ -283,7 +258,7 @@ class MainWindow(QMainWindow):
         else:  # Else we simply delete the clicked row
             self.remove_combatant_from_table(clicked_row)
 
-    # This helper method holds the spell slots dialogue
+    # this helper method holds the spell slots dialogue
     def open_spell_slots_dialogue(self,clicked_row):
         # Open dialog to add ability
         # First we create a dialogue box
@@ -316,7 +291,7 @@ class MainWindow(QMainWindow):
             # Then we render the spell slots based on the combat manager
             combatant = self.comb_manager.get_combatant_by_id(combatant_id)
             spell_slots = self.spell_slots_to_list(combatant.spell_slot_dict)
-            col = self.col_index["Spell Slots"]
+            col = self.columns["Spell Slots"]
             self.set_ability_widget(clicked_row, col, combatant_id, spell_slots,True)
             # Closes the dialogue and returns a successful result
             dialog.accept()
@@ -365,7 +340,7 @@ class MainWindow(QMainWindow):
             combatant = self.comb_manager.get_combatant_by_id(combatant_id)
             abilities = sorted(self.abilities_to_list(combatant.ability_dict))
 
-            col = self.col_index["Abilities"]
+            col = self.columns["Abilities"]
             self.set_ability_widget(clicked_row,col,combatant_id,abilities)
             # Closes the dialogue and returns a successful result
             dialog.accept()
@@ -415,27 +390,25 @@ class MainWindow(QMainWindow):
 
 
         self.table.insertRow(row_index)
-        self.table.setItem(row_index, self.col_index["Name"] , name_item)
-        self.table.setItem(row_index, self.col_index["Initiative"] , initiative_item)
-        self.table.setItem(row_index, self.col_index["AC"] , ac_item)
-        self.table.setItem(row_index, self.col_index["Damage"] , damage_item)
-        self.table.setItem(row_index, self.col_index["HP"] , hp_item)
-        self.table.setItem(row_index, self.col_index["Status"] , status_item)
+        self.table.setItem(row_index, 0 , name_item)
+        self.table.setItem(row_index, 1 , initiative_item)
+        self.table.setItem(row_index, 2 , ac_item)
+        self.table.setItem(row_index, 3 , damage_item)
+        self.table.setItem(row_index, 4 , hp_item)
+        self.table.setItem(row_index, 5 , status_item)
 
         caster_level = combatant.caster_level
         if caster_level >= 1:
             self.ensure_spell_slots_column()
             spell_slots = self.spell_slots_to_list(self.comb_manager.full_caster_progression[caster_level])
-            col = self.col_index["Spell Slots"]
+            col = self.columns["Spell Slots"]
             self.set_ability_widget(row_index,col, combatant.id, spell_slots,True)
 
         if combatant.ability_dict:
             self.ensure_abilities_column()
             abilities = sorted(self.abilities_to_list(combatant.ability_dict))
-            col = self.col_index["Abilities"]
+            col = self.columns["Abilities"]
             self.set_ability_widget(row_index, col,combatant.id, abilities)
-
-        self.update_row_color(row_index)
 
 
     def remove_combatant_from_table(self,row):
@@ -460,26 +433,24 @@ class MainWindow(QMainWindow):
         Update all cells in table for a specific row from the combatant object.
         This avoids searching by name and prevents NoneType errors
         """
-        if not self.table.item(row, self.col_index["Name"]):
-            self.table.setItem(row,self.col_index["Name"],QTableWidgetItem())
-        if not self.table.item(row,self.col_index["Initiative"]):
-            self.table.setItem(row, self.col_index["Initiative"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["AC"]):
-            self.table.setItem(row,self.col_index["AC"],QTableWidgetItem())
-        if not self.table.item(row, self.col_index["Damage"]):
-            self.table.setItem(row, self.col_index["Damage"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["HP"]):
-            self.table.setItem(row, self.col_index["HP"], QTableWidgetItem())
+        if not self.table.item(row, 0):
+            self.table.setItem(row,0,QTableWidgetItem())
+        if not self.table.item(row,1):
+            self.table.setItem(row, 1, QTableWidgetItem())
+        if not self.table.item(row, 2):
+            self.table.setItem(row,2,QTableWidgetItem())
+        if not self.table.item(row, 3):
+            self.table.setItem(row, 3, QTableWidgetItem())
+        if not self.table.item(row, 4):
+            self.table.setItem(row, 4, QTableWidgetItem())
 
-        self.table.item(row,self.col_index["Name"]).setText(combatant.name)
-        self.table.item(row, self.col_index["Name"]).setData(Qt.UserRole, combatant.id)
+        self.table.item(row,0).setText(combatant.name)
+        self.table.item(row, 0).setData(Qt.UserRole, combatant.id)
         initiative = format_initiative(combatant.initiative)
-        self.table.item(row,self.col_index["Initiative"]).setText(initiative)
-        self.table.item(row,self.col_index["AC"]).setText(str(combatant.ac))
-        self.table.item(row,self.col_index["Damage"]).setText(str(combatant.damage_taken))
-        self.table.item(row,self.col_index["HP"]).setText(str(combatant.hp_total))
-
-        self.update_row_color(row)
+        self.table.item(row,1).setText(initiative)
+        self.table.item(row,2).setText(str(combatant.ac))
+        self.table.item(row,3).setText(str(combatant.damage_taken))
+        self.table.item(row,4).setText(str(combatant.hp_total))
 
     def give_combatant_spell_slots(self, row: int, level: int):
         """This method exists to give a combatant in a certain row spell slots."""
@@ -501,13 +472,47 @@ class MainWindow(QMainWindow):
         combatant_id = name_item.data(Qt.UserRole)
         return combatant_id
 
+    def ensure_spell_slots_column(self):
+        """This little method is just to create a spell slots column if none exists"""
+        if self.spell_slots_column == False:
+            # We automatically get the current number of columns
+            current_cols = self.table.columnCount()
+
+            #We check to see if there is already an abilities column
+            if self.abilities_column:
+                #We update the columns dictionary
+                self.columns["Abilities"] +=1
+                spell_col_index = current_cols - 1
+                self.table.insertColumn(current_cols-1)
+            else:
+                spell_col_index = current_cols
+                # We increase the number of columns by one
+                self.table.setColumnCount(current_cols + 1)
+
+            # Finally, we place a label at the top of the column, and update the columns dictionary
+            self.table.setHorizontalHeaderItem(spell_col_index, QTableWidgetItem("Spell Slots"))
+            self.columns["Spell Slots"] = spell_col_index
+
+            self.spell_slots_column = True
+
+    def ensure_abilities_column(self):
+        """This method is similar to the above, in that its job is to ensure there is an 'abilities' column."""
+        if self.abilities_column == False:
+            # We automatically get the current number of columns
+            current_cols = self.table.columnCount()
+            #We then increase the number of columns by one
+            self.table.setColumnCount(current_cols + 1)
+            # Finally, we place a label at the top of the column and update the columns dictionary
+            self.table.setHorizontalHeaderItem(current_cols, QTableWidgetItem("Abilities"))
+            self.columns["Abilities"] = current_cols
+            self.abilities_column = True
 
     #This little helper method converts spell slots dictionaries to a format suitable for the add_ability_slots_cell method.
-    def spell_slots_to_list(self,spell_dict):
-        return [(f"Level {lvl}",count, lvl) for lvl, count in spell_dict.items() if count >0]
+    def spell_slots_to_list(self,dict):
+        return [(f"Level {lvl}",count, lvl) for lvl, count in dict.items() if count >0]
 
-    def abilities_to_list(self,ab_dict):
-        return [(ability_name, ab_dict[ability_name].max,None) for ability_name in ab_dict]
+    def abilities_to_list(self,dict):
+        return [(ability_name, dict[ability_name].max,None) for ability_name in dict]
 
     #This method handles what happens when the add combatant button is clicked
     def on_add_combatant_clicked(self):
@@ -532,12 +537,8 @@ class MainWindow(QMainWindow):
     def on_cell_changed(self,row,column):
         if self.rebuilding:
             return
-        if column == self.col_index["Damage"]:  # Checking if the edited column was damage taken
-                #This just returns, as the damage delegate takes care of these edits
-                return
+        # Get the name of the combatant in this row
 
-
-        # Get the id of the combatant in this row
         combatant_id = self.fetch_combatant_id(row)
         #We copy the combatant for back-up purposes in case a roll-back is needed
         combatant = copy.deepcopy(self.comb_manager.get_combatant_by_id(combatant_id))
@@ -549,25 +550,31 @@ class MainWindow(QMainWindow):
         edited_text = edited_item.text()
 
         try:
-            if column == self.col_index["Name"]:
+            if column == 0:
                 self.undo_manager.do(SetNameCommand(manager=self.comb_manager,cid=combatant_id,new_name=edited_text))
-            elif column == self.col_index["Initiative"]: #Checking if the edited column was initiative
+                #self.comb_manager.set_combatant_name(combatant_id,edited_text)
+            elif column == 1: #Checking if the edited column was initiative
                 initiative = float(edited_text)
                 self.undo_manager.do(SetInitiativeCommand(manager=self.comb_manager,cid=combatant_id,new_initiative=initiative))
+                #self.comb_manager.set_combatant_initiative(combatant_id,initiative)
                 if any(combatant.initiative >= com.initiative for com in self.comb_manager.combatants.values()):
                     self.sort_table_initiative()
                 return
-            elif column == self.col_index["AC"]: #Checking if the edited column was AC
+            elif column == 2: #Checking if the edited column was AC
                 ac=int(edited_text)
                 self.undo_manager.do(SetACCommand(manager=self.comb_manager,cid=combatant_id,new_ac=ac))
-            # elif column == self.col_index["Damage"]:  # Checking if the edited column was damage taken
-            #     damage_taken = safe_eval(edited_text)
-            #     self.undo_manager.do(SetDamageCommand(manager=self.comb_manager,cid=combatant_id,new_dmg=damage_taken,new_dmg_expr=edited_text))
-            elif column == self.col_index["HP"]:  # Checking if the edited column was Hp total
+                #self.comb_manager.set_combatant_ac(combatant_id,int(edited_text))
+            elif column == 3:  # Checking if the edited column was damage taken
+                damage_taken = safe_eval(edited_text)
+                self.undo_manager.do(SetDamageCommand(manager=self.comb_manager,cid=combatant_id,new_dmg=damage_taken))
+                #self.comb_manager.set_combatant_damage(combatant_id,damage_taken)
+            elif column == 4:  # Checking if the edited column was Hp total
                 hp_tot = int(edited_text)
                 self.undo_manager.do(SetHPTotCommand(manager=self.comb_manager,cid=combatant_id,new_hp=hp_tot))
-            elif column == self.col_index["Status"]:
+                #self.comb_manager.set_combatant_hp_tot(combatant_id,int(edited_text))
+            elif column == 5:
                 self.undo_manager.do(SetStatusCommand(manager=self.comb_manager,cid=combatant_id,new_status=edited_text))
+                #self.comb_manager.set_combatant_status(combatant_id,edited_text)
 
         except Exception as e:
             #This is intended to handle invalid inputs, such as writing abc in the damage taken column.
@@ -583,7 +590,7 @@ class MainWindow(QMainWindow):
 
         finally:
             # This part refreshes the ui with the information from the combat manager
-            if column != self.col_index["Initiative"]:
+            if column != 1:
                 combatant = self.comb_manager.get_combatant_by_id(combatant_id)
                 self.rebuilding = True
                 try:
@@ -609,111 +616,10 @@ class MainWindow(QMainWindow):
             self.table.blockSignals(False)
             self.rebuilding = False
 
-    def on_item_double_clicked(self, item):
-        row = item.row()
-        column = item.column()
-
-        # only apply to Damage Taken column
-        if column != self.col_index["Damage"]:
-            return
-
-        combatant_id = self.fetch_combatant_id(row)
-        combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-
-        # prevent signal loop while we modify UI
-        self.rebuilding = True
-        try:
-            item.setText(combatant.damage_expr)
-        finally:
-            self.rebuilding = False
-
-    def ordered_columns(self):
-        return sorted(
-            self.active_columns,
-            key=lambda name: self.column_priority[name]
-        )
-
-    def rebuild_columns_index(self):
-        ordered_columns = self.ordered_columns()
-        self.col_index = {name: i for i, name in enumerate(ordered_columns)}
-
-    def create_column(self,column_name: str):
-        if column_name in self.active_columns:
-            raise Exception(f"Column with name {column_name} already exists")
-        if column_name not in self.column_priority:
-            raise Exception(f"Column name must be in the pre-defined list")
-        else:
-
-            self.active_columns.add(column_name)
-
-            self.rebuild_columns_index()
-
-            column_index = self.col_index[column_name]
-
-            self.table.insertColumn(column_index)
-            self.table.setHorizontalHeaderItem(column_index, QTableWidgetItem(column_name))
-
-    def get_insert_position(self, column_name):
-        priority = self.column_priority[column_name]
-
-        for i, name in enumerate(self.ordered_columns()):
-            if self.column_priority[name] > priority:
-                return i
-
-        return len(self.active_columns)
-
-    def ensure_spell_slots_column(self):
-        """This little method is just to create a spell slots column if none exists"""
-        if self.spell_slots_column:
-            return
-        else:
-            self.create_column("Spell Slots")
-            self.spell_slots_column = False
-
-    def ensure_abilities_column(self):
-        """This method is similar to the above, in that its job is to ensure there is an 'abilities' column."""
-        if self.abilities_column:
-            return
-        else:
-            self.create_column("Abilities")
-            self.abilities_column = True
-
-    def update_row_color(self, row):
-        combatant_id = self.fetch_combatant_id(row)
-        combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-        hp_left = combatant.hp_total - combatant.damage_taken
-
-        if hp_left <= 0:
-            color = "#ff7a7a"  # dead (dark red)
-        elif hp_left <= combatant.hp_total/2:
-            color = "#ffcc66"  # danger (orange/yellow)
-        else:
-            color = None
-
-        for col in range(self.table.columnCount()):
-            item = self.table.item(row, col)
-            if not item:
-                continue
-
-            if color:
-                item.setBackground(QColor(color))
-            else:
-                item.setBackground(QColor(0, 0, 0, 0))  # reset
-
-
-    # Settings Methods
-    def apply_light_theme(self):
-        apply_theme(LIGHT_THEME)
-
-    def apply_dark_theme(self):
-        apply_theme(DARK_THEME)
-
-
 
 
 def run_app():
     app = QApplication(sys.argv)
-
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
