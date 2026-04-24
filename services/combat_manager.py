@@ -225,6 +225,29 @@ class CombatManager:
         combatant = self.get_combatant_by_id(comb_id)
         return combatant.conditions
 
+    def advance_round(self):
+        self.round +=1
+        for comb in self.combatants.values():
+            new_conditions = []
+            for c in comb.conditions:
+                updated_cond = c.advance_condition()
+                if updated_cond.indefinite or updated_cond.rounds_left > 0:
+                    new_conditions.append(updated_cond)
+            comb.conditions = new_conditions
+
+    def regress_round(self):
+        self.round -= 1
+
+    def reset_round(self):
+        self.round = 1
+
+    def set_round(self,round):
+        self.round = round
+
+    def restore_state(self, round_value, combatants):
+        self.round = round_value
+        self.combatants = combatants
+
     def make_encounter_data(self):
         combatants_data = []
         for combatant in self.combatants.values():

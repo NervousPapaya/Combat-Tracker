@@ -1,7 +1,7 @@
 import sys
 import copy
 from commands.commands import (SetNameCommand, SetACCommand, SetInitiativeCommand, SetHPTotCommand, \
-    SetStatusCommand, SetSpellSlotsCommand,SetAbilitiesCommand, SetConditionsCommand)
+    SetStatusCommand, SetSpellSlotsCommand,SetAbilitiesCommand, SetConditionsCommand, AdvanceRoundCommand, ResetRoundCommand)
 from models.combatant import Combatant
 
 from services.combat_manager import CombatManager
@@ -150,6 +150,18 @@ class MainWindow(QMainWindow):
         input_layout.addLayout(add_button_layout)
         input_layout.addStretch()
 
+
+        # Building a bottom status bar:
+
+        self.round_label = QLabel()
+        self.update_round_display()
+        self.next_round_button = QPushButton("Next Round")
+        self.next_round_button.clicked.connect(self.on_next_round_clicked)
+        self.next_round_button.setShortcut("Space")
+
+        self.statusBar().addPermanentWidget(self.round_label)
+        self.statusBar().addPermanentWidget(self.next_round_button)
+
         #Main Layout
         main_layout = QVBoxLayout() #Tells the Qwidget to use a vertical box layout
         main_layout.addLayout(input_layout) #Adds the input layout on top
@@ -207,6 +219,9 @@ class MainWindow(QMainWindow):
                     f"Could not load encounter from file:\n{str(e)}"
                 )
 
+    def update_round_display(self):
+
+        self.round_label.setText(f"Round: {self.comb_manager.round}")
 
     #This method handles the right click context menu !!!
     def show_context_menu(self, pos):
@@ -218,15 +233,17 @@ class MainWindow(QMainWindow):
 
         undo_action = menu.addAction("Undo")
         undo_action.triggered.connect(self.handle_undo)
-
-        redo_action = menu.addAction("Redo")
-        redo_action.triggered.connect(self.handle_redo)
-
         if not self.undo_manager.undo_stack:
             undo_action.setEnabled(False)
 
+        redo_action = menu.addAction("Redo")
+        redo_action.triggered.connect(self.handle_redo)
         if not self.undo_manager.redo_stack:
             redo_action.setEnabled(False)
+
+        reset_round_action = menu.addAction("Reset Round")
+        reset_round_action.triggered.connect(self.handle_round_reset)
+
 
         #Position sensitive part of menu.
         #Only rendered if a row is clicked.
@@ -245,16 +262,24 @@ class MainWindow(QMainWindow):
             abilities_action = menu.addAction("Add Ability")
             abilities_action.triggered.connect(partial(self.open_abilities_dialogue,clicked_row))
 
+            conditions_action = menu.addAction("Add/Remove Conditions")
+            conditions_action.triggered.connect(partial(self.open_conditions_dialog, clicked_row))
+
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
     #These three handler methods handle parts of the context menu
     def handle_undo(self):
         self.undo_manager.undo()
         self.sort_table_initiative()
+        self.update_round_display()
 
     def handle_redo(self):
         self.undo_manager.redo()
         self.sort_table_initiative()
+
+    def handle_round_reset(self):
+        self.undo_manager.do(ResetRoundCommand(self.comb_manager))
+        self.update_round_display()
 
     def handle_remove_combatant(self,clicked_row):
         selected_indices = self.table.selectionModel().selectedRows()  # Setting up a collection of selected rows to possibly delete multiple combatants
@@ -294,7 +319,8 @@ class MainWindow(QMainWindow):
 
             self.table_mapper.draw_combatant_abilities(clicked_row,combatant_id)
 
-    def open_conditions_dialog(self,combatant_id):
+    def open_conditions_dialog(self,row):
+        combatant_id = self.table_mapper.fetch_combatant_id(row)
         combatant = self.comb_manager.get_combatant_by_id(combatant_id)
         conditions = copy.deepcopy(combatant.conditions)
         dialog = ConditionsDialog(conditions, self)
@@ -306,6 +332,8 @@ class MainWindow(QMainWindow):
                 cid=combatant_id,
                 new_conditions=new_conditions
             ))
+
+            self.table_mapper.update_combatant_row(row,combatant)
 
 
 
@@ -327,6 +355,12 @@ class MainWindow(QMainWindow):
             self.sort_table_initiative()
             return
 
+
+    #This handler method handles when the next round button is clicked
+    def on_next_round_clicked(self):
+        self.undo_manager.do(AdvanceRoundCommand(self.comb_manager))
+        self.update_round_display()
+        self.table_mapper.refresh_table()
 
     #This is the "handler method" which handles cells being changed
     def on_cell_changed(self,row,column):
@@ -412,7 +446,7 @@ class MainWindow(QMainWindow):
         combatant_id = self.table_mapper.fetch_combatant_id(row)
 
         if column == self.table_mapper.col_index["Conditions"]:
-            self.open_conditions_dialog(combatant_id)
+            self.open_conditions_dialog(row)
             return
 
         # combatant = self.comb_manager.get_combatant_by_id(combatant_id)

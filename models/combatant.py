@@ -10,7 +10,27 @@ class Ability:
 class Condition:
     name: str
     rounds_left: int
-    indefinite: bool = 0
+    indefinite: bool = False
+
+    def advance_condition(self) -> Condition:
+        if self.indefinite:
+            return self
+
+        return Condition(
+            name=self.name,
+            rounds_left=self.rounds_left - 1,
+            indefinite=False
+        )
+
+    def regress_condition(self) -> Condition:
+        if self.indefinite:
+            return self
+
+        return Condition(
+            name=self.name,
+            rounds_left=self.rounds_left + 1,
+            indefinite=False
+        )
 
 @dataclass
 class Combatant:

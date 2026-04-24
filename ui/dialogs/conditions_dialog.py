@@ -32,7 +32,7 @@ class ConditionsDialog(QDialog):
         self.duration_input = QSpinBox()
         self.duration_input.setRange(1,99)
 
-        duration_layout.addWidget(QLabel("Duration:"))
+        duration_layout.addWidget(QLabel("Duration (rounds):"))
         duration_layout.addWidget(self.duration_input)
 
         dlg_layout.addLayout(name_layout)

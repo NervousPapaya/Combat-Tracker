@@ -127,6 +127,11 @@ class CombatTableMapper:
             self.table.setItem(row, self.col_index["Damage"], QTableWidgetItem())
         if not self.table.item(row, self.col_index["HP"]):
             self.table.setItem(row, self.col_index["HP"], QTableWidgetItem())
+        if not self.table.item(row, self.col_index["Status"]):
+            self.table.setItem(row, self.col_index["Status"], QTableWidgetItem())
+        if not self.table.item(row, self.col_index["Conditions"]):
+            self.table.setItem(row, self.col_index["Conditions"], QTableWidgetItem())
+
 
         self.table.item(row,self.col_index["Name"]).setText(combatant.name)
         self.table.item(row, self.col_index["Name"]).setData(Qt.UserRole, combatant.id)
@@ -135,8 +140,20 @@ class CombatTableMapper:
         self.table.item(row,self.col_index["AC"]).setText(str(combatant.ac))
         self.table.item(row,self.col_index["Damage"]).setText(str(combatant.damage_taken))
         self.table.item(row,self.col_index["HP"]).setText(str(combatant.hp_total))
+        self.table.item(row,self.col_index["Status"]).setText(str(combatant.status))
+        conditions_string = format_conditions(combatant)
+        self.table.item(row,self.col_index["Conditions"]).setText(str(conditions_string))
 
         self.update_row_color(row)
+
+    def refresh_table(self):
+        """This method is an alternative to the sort method of the main window.
+        While that one rebuilds the entire table, this refreshes each row (excluding checkbox columns)"""
+        row_count = self.table.rowCount()
+        for row in range(row_count):
+            combatant_id = self.fetch_combatant_id(row)
+            combatant = self.comb_manager.get_combatant_by_id(combatant_id)
+            self.update_combatant_row(row,combatant)
 
     def create_column(self,column_name: str):
         if column_name in self.active_columns:

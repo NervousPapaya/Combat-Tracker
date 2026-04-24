@@ -131,3 +131,29 @@ class SetConditionsCommand(Command):
 
     def undo(self):
         self.manager.set_combatant_conditions(self.cid,self.old_conditions)
+
+class AdvanceRoundCommand(Command):
+    def __init__(self, manager):
+        self.manager = manager
+        self.old_round = None
+        self.old_combatants = None
+
+    def execute(self):
+        self.old_round = self.manager.round
+        self.old_combatants = copy.deepcopy(self.manager.combatants)
+        self.manager.advance_round()
+
+    def undo(self):
+        self.manager.restore_state(self.old_round,self.old_combatants)
+
+class ResetRoundCommand(Command):
+    def __init__(self, manager):
+        self.manager = manager
+        self.old_round = None
+
+    def execute(self):
+        self.old_round = self.manager.round
+        self.manager.reset_round()
+
+    def undo(self):
+        self.manager.set_round(self.old_round)
