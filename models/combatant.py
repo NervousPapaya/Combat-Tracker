@@ -6,6 +6,12 @@ class Ability:
     left: int
     max: int
 
+@dataclass(frozen=True)
+class Condition:
+    name: str
+    rounds_left: int
+    indefinite: bool = 0
+
 @dataclass
 class Combatant:
     name: str
@@ -18,6 +24,7 @@ class Combatant:
 
     damage_taken: int = 0
     damage_expr: str = "0"
+    conditions: list = field(default_factory = list)
     status: str = ""
     caster_level: int = 0
     #We set up a dictionary to store spell slots if necessary.

@@ -1,4 +1,5 @@
 from commands.base import Command
+import copy
 
 class SetNameCommand(Command):
     def __init__(self, manager, cid, new_name):
@@ -89,3 +90,44 @@ class SetStatusCommand(Command):
 
     def undo(self):
         self.manager.set_combatant_status(self.cid,self.old_status)
+
+class SetSpellSlotsCommand(Command):
+    def __init__(self, manager, cid, new_caster_level):
+        self.manager = manager
+        self.cid = cid
+        self.new_caster_level = new_caster_level
+        self.old_caster_level = None
+
+    def execute(self):
+        self.old_caster_level = self.manager.get_combatant_caster_level(self.cid)
+        self.manager.set_caster_level(self.cid,caster_level=self.new_caster_level)
+
+    def undo(self):
+        self.manager.set_caster_level(self.cid,caster_level=self.old_caster_level)
+
+class SetAbilitiesCommand(Command):
+    def __init__(self, manager, cid, new_ability_name, new_ability_uses):
+        self.manager = manager
+        self.cid = cid
+        self.new_ability_name = new_ability_name
+        self.new_ability_uses = new_ability_uses
+
+    def execute(self):
+        self.manager.add_ability(self.cid,ability_name=self.new_ability_name,maximum_uses=self.new_ability_uses)
+
+    def undo(self):
+        self.manager.remove_ability(self.cid,ability_name=self.new_ability_name)
+
+class SetConditionsCommand(Command):
+    def __init__(self, manager, cid, new_conditions):
+        self.manager = manager
+        self.cid = cid
+        self.new_conditions = new_conditions
+        self.old_conditions = None
+
+    def execute(self):
+        self.old_conditions = self.manager.get_combatant_conditions(self.cid)
+        self.manager.set_combatant_conditions(self.cid,self.new_conditions)
+
+    def undo(self):
+        self.manager.set_combatant_conditions(self.cid,self.old_conditions)

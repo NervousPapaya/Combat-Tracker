@@ -1,5 +1,7 @@
 import uuid
 import os
+from uuid import UUID
+
 from models.combatant import Combatant, Ability
 import json
 from filehandling.filehandling import make_output, create_output_path
@@ -168,13 +170,17 @@ class CombatManager:
 
 
     #The * forces the following arguments to be keyword only
-    def add_caster_level(self,comb_id: uuid.UUID,*,caster_level: int=0):
+    def set_caster_level(self,comb_id: uuid.UUID,*,caster_level: int=0):
         if not isinstance(caster_level,int):
             raise TypeError("Caster Level must be an integer.")
         if not 0 <= caster_level <= 20:
             raise ValueError("Caster level must be between 0 and 20")
         self.combatants[comb_id].caster_level = caster_level
         self.combatants[comb_id].compute_spell_slots(self.full_caster_progression)
+
+    def get_combatant_caster_level(self,cid: uuid.UUID):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.caster_level
 
     def regain_spell_slot(self,comb_id: uuid.UUID,level: int):
         combatant = self.combatants[comb_id]
@@ -189,6 +195,18 @@ class CombatManager:
     def add_ability(self,comb_id: uuid.UUID,ability_name: str, maximum_uses: int):
         self.combatants[comb_id].ability_dict[ability_name] = Ability(left=maximum_uses,max=maximum_uses)
 
+    def set_combatant_abilities(self,cid: uuid.UUID,ab_dict:dict):
+        combatant = self.get_combatant_by_id(cid)
+        combatant.ability_dict = ab_dict
+
+    def get_combatant_abilities(self,cid: uuid.UUID):
+        combatant = self.get_combatant_by_id(cid)
+        return combatant.ability_dict
+
+    def remove_ability(self, cid, ability_name):
+        combatant = self.get_combatant_by_id(cid)
+        del combatant.ability_dict[ability_name]
+
     def regain_ability(self,comb_id: uuid.UUID,ability_name:str):
         combatant = self.combatants[comb_id]
         if combatant.ability_dict[ability_name].left < combatant.ability_dict[ability_name].max:
@@ -198,6 +216,14 @@ class CombatManager:
         combatant = self.combatants[comb_id]
         if combatant.ability_dict[ability_name].left >0:
                 combatant.ability_dict[ability_name].left -= 1
+
+    def set_combatant_conditions(self,comb_id: uuid.UUID, conditions: list):
+        combatant = self.get_combatant_by_id(comb_id)
+        combatant.conditions = conditions
+
+    def get_combatant_conditions(self,comb_id: uuid.UUID):
+        combatant = self.get_combatant_by_id(comb_id)
+        return combatant.conditions
 
     def make_encounter_data(self):
         combatants_data = []
@@ -253,22 +279,7 @@ class CombatManager:
 
             combatant = Combatant(**comb)
             self.combatants[combatant.id] = combatant
-        # for comb in loaded_data["combatants"]:
-        #     combatant = Combatant(comb["name"], comb["initiative"], comb["ac"], comb["hp_total"])
-        #     combatant.damage_taken = comb["damage_taken"]
-        #     combatant.id = uuid.UUID(comb["id"])
-        #     combatant.caster_level = comb["caster_level"]
-        #     if comb["spell_slots"]:
-        #         for key in comb["spell_slots"]:
-        #             combatant.spell_slot_dict[int(key)] = comb["spell_slots"][key]
-        #
-        #     for name, ability_data in comb["ability_dict"].items():
-        #         combatant.ability_dict[name] = Ability(left=ability_data["left"], max=ability_data["max"])
-        #
-        #     if comb["abilities"]:
-        #         for ability_name in comb["abilities"]:
-        #             combatant.ability_dict[ability_name] = Ability(left=comb[ability_name][0], max=comb[ability_name][1])
-        #     self.add_combatant(combatant)
+
 
 # Methods past this line are in a holding pattern. They aren't used and are up for deletion
 # ----------------------------------------------------------------------------------------------

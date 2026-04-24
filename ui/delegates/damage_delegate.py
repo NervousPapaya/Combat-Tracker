@@ -5,10 +5,12 @@ from commands.commands import SetDamageCommand
 
 #This delegate handles the damage column
 class DamageDelegate(QStyledItemDelegate):
-    def __init__(self, parent, manager):
+    def __init__(self, parent, manager, refresh_row_callback, fetch_combatant_callback):
         super().__init__(parent)
         self.manager = manager
         self.parent = parent  # MainWindow
+        self.refresh_row = refresh_row_callback
+        self.fetch_combatant_id = fetch_combatant_callback
 
     #How editing works (just uses parent)
     def createEditor(self, parent, option, index):
@@ -17,7 +19,7 @@ class DamageDelegate(QStyledItemDelegate):
     #What happens when editing starts
     def setEditorData(self, editor, index):
         row = index.row()
-        combatant_id = self.parent.fetch_combatant_id(row)
+        combatant_id = self.fetch_combatant_id(row)
         combatant = self.manager.get_combatant_by_id(combatant_id)
 
         # Show expression when editing
@@ -28,7 +30,7 @@ class DamageDelegate(QStyledItemDelegate):
         text = editor.text()
         row = index.row()
 
-        combatant_id = self.parent.fetch_combatant_id(row)
+        combatant_id = self.fetch_combatant_id(row)
 
         try:
             value = safe_eval(text)
@@ -45,7 +47,7 @@ class DamageDelegate(QStyledItemDelegate):
 
             # IMPORTANT: set evaluated value in UI
             model.setData(index, str(value), Qt.EditRole)
-            self.parent.update_row_color(row)
+            self.refresh_row(row)
 
         except Exception:
             # rollback
