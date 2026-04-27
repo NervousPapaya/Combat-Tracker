@@ -9,7 +9,7 @@ from services.maths import is_whole_number
 from services.undo_manager import UndoManager
 
 from ui.delegates.damage_delegate import DamageDelegate
-from ui.themes import apply_theme,DARK_THEME,LIGHT_THEME
+from ui.styling.themes import apply_theme,DARK_THEME,LIGHT_THEME
 from ui.abilitywidget import AbilityTrackerWidget
 from ui.dialogs.ability_dialog import AbilityDialog
 from ui.dialogs.spell_dialog import SpellDialog

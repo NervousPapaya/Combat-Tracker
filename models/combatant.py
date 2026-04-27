@@ -12,7 +12,7 @@ class Condition:
     rounds_left: int
     indefinite: bool = False
 
-    def advance_condition(self) -> Condition:
+    def advance_condition(self):
         if self.indefinite:
             return self
 
@@ -22,7 +22,7 @@ class Condition:
             indefinite=False
         )
 
-    def regress_condition(self) -> Condition:
+    def regress_condition(self):
         if self.indefinite:
             return self
 
@@ -54,6 +54,9 @@ class Combatant:
     #We set up a dictionary to store ability slots if necessary.
     #As before field and default_factory must be used
     ability_dict: dict = field(default_factory = dict)
+
+    #We set up a flag for whether a combatant should persist upon deletion of the encounter
+    permanent: bool = False
 
     def __post_init__(self):
         if not 0 <= self.caster_level <= 20:

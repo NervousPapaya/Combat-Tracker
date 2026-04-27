@@ -2,11 +2,12 @@
 from PySide6.QtCore import Qt
 
 from PySide6.QtWidgets import QTableWidgetItem
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QFont
 
 from models.combatant import Combatant
 from services.formating import abilities_to_list, spell_slots_to_list, format_initiative, format_conditions
 from ui.abilitywidget import AbilityTrackerWidget
+from ui.styling.color_themes import column_coloring_dark,column_coloring_light
 
 #This class should handle the table in the main UI
 class CombatTableMapper:
@@ -27,6 +28,14 @@ class CombatTableMapper:
             "Abilities": 10,
         }
 
+        # These Column groups can be used for coloring purposes
+        self.column_groups = {
+            "combat": ["Name", "Initiative", "AC"],
+            "damage": ["Damage", "HP"],
+            "state": ["Conditions", "Status"],
+            "other":["Spell Slots","Abilities"]
+        }
+
         #This list is the master of which columns are currently displayed
         self.active_columns = ["Name", "Initiative", "AC", "Damage", "HP", "Conditions", "Status"]
         self.active_columns = set(self.active_columns)
@@ -44,6 +53,8 @@ class CombatTableMapper:
         #Setting up a variable to check if we want an abilities column
         self.abilities_column = False
 
+        #Setting up a dark mode flag
+        self.dark_mode = False
 
     def add_combatant_to_table(self, combatant: Combatant):
         row_index = self.table.rowCount()
@@ -76,7 +87,8 @@ class CombatTableMapper:
 
         conditions_string = format_conditions(combatant)
         conditions_item = QTableWidgetItem(conditions_string)
-        status_item.setFlags(Qt.ItemIsSelectable)
+        conditions_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        #conditions_item.setFlags(Qt.ItemIsSelectable)
 
         self.table.setItem(row_index, self.col_index["Name"] , name_item)
         self.table.setItem(row_index, self.col_index["Initiative"] , initiative_item)
@@ -117,34 +129,64 @@ class CombatTableMapper:
         Update all cells in table for a specific row from the combatant object.
         This avoids searching by name and prevents NoneType errors
         """
-        if not self.table.item(row, self.col_index["Name"]):
-            self.table.setItem(row,self.col_index["Name"],QTableWidgetItem())
-        if not self.table.item(row,self.col_index["Initiative"]):
-            self.table.setItem(row, self.col_index["Initiative"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["AC"]):
-            self.table.setItem(row,self.col_index["AC"],QTableWidgetItem())
-        if not self.table.item(row, self.col_index["Damage"]):
-            self.table.setItem(row, self.col_index["Damage"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["HP"]):
-            self.table.setItem(row, self.col_index["HP"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["Status"]):
-            self.table.setItem(row, self.col_index["Status"], QTableWidgetItem())
-        if not self.table.item(row, self.col_index["Conditions"]):
-            self.table.setItem(row, self.col_index["Conditions"], QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["Name"]):
+        #     self.table.setItem(row,self.col_index["Name"],QTableWidgetItem())
+        # if not self.table.item(row,self.col_index["Initiative"]):
+        #     self.table.setItem(row, self.col_index["Initiative"], QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["AC"]):
+        #     self.table.setItem(row,self.col_index["AC"],QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["Damage"]):
+        #     self.table.setItem(row, self.col_index["Damage"], QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["HP"]):
+        #     self.table.setItem(row, self.col_index["HP"], QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["Status"]):
+        #     self.table.setItem(row, self.col_index["Status"], QTableWidgetItem())
+        # if not self.table.item(row, self.col_index["Conditions"]):
+        #     self.table.setItem(row, self.col_index["Conditions"], QTableWidgetItem())
 
+        name_item = self.get_item(row, self.col_index["Name"])
+        initiative_item = self.get_item(row,self.col_index["Initiative"])
+        ac_item = self.get_item(row,self.col_index["AC"])
+        damage_item = self.get_item(row,self.col_index["Damage"])
+        hp_item = self.get_item(row,self.col_index["HP"])
+        conditions_item = self.get_item(row,self.col_index["Conditions"])
+        status_item = self.get_item(row,self.col_index["Status"])
 
-        self.table.item(row,self.col_index["Name"]).setText(combatant.name)
-        self.table.item(row, self.col_index["Name"]).setData(Qt.UserRole, combatant.id)
+        name_item.setText(combatant.name)
+        name_item.setData(Qt.UserRole, combatant.id)
+
         initiative = format_initiative(combatant.initiative)
-        self.table.item(row,self.col_index["Initiative"]).setText(initiative)
-        self.table.item(row,self.col_index["AC"]).setText(str(combatant.ac))
-        self.table.item(row,self.col_index["Damage"]).setText(str(combatant.damage_taken))
-        self.table.item(row,self.col_index["HP"]).setText(str(combatant.hp_total))
-        self.table.item(row,self.col_index["Status"]).setText(str(combatant.status))
+        initiative_item.setText(initiative)
+        ac_item.setText(str(combatant.ac))
+        damage_item.setText(str(combatant.damage_taken))
+        hp_item.setText(str(combatant.hp_total))
+        status_item.setText(str(combatant.status))
+
+        conditions_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
         conditions_string = format_conditions(combatant)
-        self.table.item(row,self.col_index["Conditions"]).setText(str(conditions_string))
+        conditions_item.setText(str(conditions_string))
+
+        # self.table.item(row,self.col_index["Name"]).setText(combatant.name)
+        # self.table.item(row, self.col_index["Name"]).setData(Qt.UserRole, combatant.id)
+        # initiative = format_initiative(combatant.initiative)
+        # self.table.item(row,self.col_index["Initiative"]).setText(initiative)
+        # self.table.item(row,self.col_index["AC"]).setText(str(combatant.ac))
+        # self.table.item(row,self.col_index["Damage"]).setText(str(combatant.damage_taken))
+        # self.table.item(row,self.col_index["HP"]).setText(str(combatant.hp_total))
+        # self.table.item(row,self.col_index["Status"]).setText(str(combatant.status))
+        # conditions_string = format_conditions(combatant)
+        # item = self.table.item(row,self.col_index["Conditions"]).setText(str(conditions_string))
+        # item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         self.update_row_color(row)
+
+    #This method is set up to ensure a cell is there to be edited
+    def get_item(self, row, col):
+        item = self.table.item(row, col)
+        if item is None:
+            item = QTableWidgetItem()
+            self.table.setItem(row, col, item)
+        return item
 
     def refresh_table(self):
         """This method is an alternative to the sort method of the main window.
@@ -170,6 +212,26 @@ class CombatTableMapper:
 
             self.table.insertColumn(column_index)
             self.table.setHorizontalHeaderItem(column_index, QTableWidgetItem(column_name))
+
+    def style_headers(self):
+        if self.dark_mode:
+            group_colors = column_coloring_dark
+        else:
+            group_colors = column_coloring_light
+
+        for group, columns in self.column_groups.items():
+            color = group_colors[group]
+            for col_name in columns:
+                if col_name not in self.col_index:
+                    continue
+                col = self.col_index[col_name]
+                item = self.table.horizontalHeaderItem(col)
+                if item:
+                    item.setBackground(QColor(color))
+
+                item.setForeground(QColor("#ffffff" if self.dark_mode else "#000000"))
+
+                item.setFont(QFont())
 
     def rebuild_columns_index(self):
         ordered_columns = self.ordered_columns()
@@ -210,6 +272,7 @@ class CombatTableMapper:
         #Fetching the combatant id from the table
         combatant_id = name_item.data(Qt.UserRole)
         return combatant_id
+
 
 
     def update_row_color(self, row):

@@ -40,7 +40,10 @@ class CombatManager:
     def __init__(self):
         self.combatants = {}
         self.round = 1
-        self.encounter_name = ""
+        self.encounter_title = "Untitled Encounter"
+
+    def set_encounter_title(self, title:str):
+        self.encounter_title = title
 
     def add_combatant(self, combatant: Combatant):
         if not isinstance(combatant, Combatant):
@@ -225,6 +228,10 @@ class CombatManager:
         combatant = self.get_combatant_by_id(comb_id)
         return combatant.conditions
 
+    def toggle_combatant_permanent(self,comb_id:uuid.UUID):
+        combatant = self.get_combatant_by_id(comb_id)
+        combatant.permanent = not combatant.permanent
+
     def advance_round(self):
         self.round +=1
         for comb in self.combatants.values():
@@ -248,6 +255,24 @@ class CombatManager:
         self.round = round_value
         self.combatants = combatants
 
+    def restore_encounter(self,round_value,combatants,title):
+        self.round = round_value
+        self.combatants = combatants
+        self.encounter_title = title
+
+    def clear_encounter(self):
+        self.combatants = {
+            cid: c for cid, c in self.combatants.items() if c.permanent
+        }
+        self.round = 1
+        self.encounter_title = "Untitled Encounter"
+
+    def clear_encounter_completely(self):
+        self.combatants = {}
+        self.round = 1
+        self.encounter_title = "Untitled Encounter"
+
+
     def make_encounter_data(self):
         combatants_data = []
         for combatant in self.combatants.values():
@@ -256,15 +281,19 @@ class CombatManager:
             combatants_data.append(data)
         return combatants_data
 
-    def save_encounter(self,filename,encounter_name = None):
+
+
+
+
+    def save_encounter(self,filename,encounter_title = None):
         data = {
             "version": 1,
-            "encounter_name": self.encounter_name,
+            "encounter_title": self.encounter_title,
             "round": self.round,
             "combatants": []
         }
-        if encounter_name:
-            data["encounter_name"] = encounter_name
+        if encounter_title:
+            data["encounter_title"] = encounter_title
         data["combatants"] = self.make_encounter_data()
         output_folder = "encounters"
         make_output(output_folder)
@@ -279,12 +308,12 @@ class CombatManager:
         #First, we clear the tracker
         self.combatants.clear()
         self.round = 1
-        self.encounter_name = ""
+        self.encounter_title = ""
 
         #This variable is currently not used, but is intended for version control
         version = loaded_data.get("version", 1)
 
-        self.encounter_name = loaded_data["encounter_name"]
+        self.encounter_title = loaded_data["encounter_title"]
         self.round = loaded_data["round"]
 
         for comb in loaded_data["combatants"]:

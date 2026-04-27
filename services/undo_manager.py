@@ -30,3 +30,7 @@ class UndoManager:
         cmd = self.redo_stack.pop()
         cmd.execute()
         self.undo_stack.append(cmd)
+
+    def clear_queue(self):
+        self.undo_stack.clear()
+        self.redo_stack.clear()

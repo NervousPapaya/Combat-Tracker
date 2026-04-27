@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox, QLabel, QDialogButtonBox, QListWidget, QPushButton
 from models.combatant import Condition
+from ui.styling.dialog_buttons_style import dialog_button_style
 import copy
 
 class ConditionsDialog(QDialog):
@@ -48,8 +49,10 @@ class ConditionsDialog(QDialog):
         remove_btn.clicked.connect(self.remove_selected)
         dlg_layout.addWidget(remove_btn)
 
+        dlg_layout.addSpacing(10)
         # OK / Cancel
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.setStyleSheet(dialog_button_style)
         dlg_layout.addWidget(buttons)
 
         buttons.accepted.connect(self.accept)

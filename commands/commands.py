@@ -1,6 +1,9 @@
 from commands.base import Command
 import copy
 
+
+#This first block of commands deals with modifying combatants in one way or another
+
 class SetNameCommand(Command):
     def __init__(self, manager, cid, new_name):
         self.manager = manager
@@ -132,6 +135,20 @@ class SetConditionsCommand(Command):
     def undo(self):
         self.manager.set_combatant_conditions(self.cid,self.old_conditions)
 
+class SetPermanentCommand(Command):
+    def __init__(self, manager, cid):
+        self.manager = manager
+        self.cid = cid
+
+
+    def execute(self):
+        self.manager.toggle_combatant_permanent(self.cid)
+
+    def undo(self):
+        self.manager.toggle_combatant_permanent(self.cid)
+
+
+
 class AdvanceRoundCommand(Command):
     def __init__(self, manager):
         self.manager = manager
@@ -157,3 +174,49 @@ class ResetRoundCommand(Command):
 
     def undo(self):
         self.manager.set_round(self.old_round)
+
+class ClearTrackerCommand(Command):
+    def __init__(self, manager):
+        self.manager = manager
+        self.old_combatants = None
+        self.old_round = None
+        self.old_title = None
+
+    def execute(self):
+        self.old_round = self.manager.round
+        self.old_combatants = copy.deepcopy(self.manager.combatants)
+        self.old_title = self.manager.encounter_title
+        self.manager.clear_encounter()
+
+    def undo(self):
+        self.manager.restore_encounter(self.old_round,self.old_combatants,self.old_title)
+
+class ClearTrackerCompletelyCommand(Command):
+    def __init__(self, manager):
+        self.manager = manager
+        self.old_combatants = None
+        self.old_round = None
+        self.old_title = None
+
+    def execute(self):
+        self.old_round = self.manager.round
+        self.old_combatants = copy.deepcopy(self.manager.combatants)
+        self.old_title = self.manager.encounter_title
+        self.manager.clear_encounter_completely()
+
+    def undo(self):
+        self.manager.restore_encounter(self.old_round,self.old_combatants,self.old_title)
+
+class SetEncounterTitleCommand(Command):
+    def __init__(self, manager, title):
+        self.manager = manager
+        self.new_title = title
+        self.old_title = None
+
+    def execute(self):
+        self.old_title = self.manager.encounter_title
+        self.manager.set_encounter_title(self.new_title)
+
+    def undo(self):
+        self.manager.set_encounter_title(self.old_title)
+

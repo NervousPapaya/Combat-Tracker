@@ -1,7 +1,7 @@
 
 
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QSpinBox, QLabel, QDialogButtonBox
-
+from ui.styling.dialog_buttons_style import dialog_button_style
 
 class SpellDialog(QDialog):
     def __init__(self,parent=None):
@@ -22,6 +22,8 @@ class SpellDialog(QDialog):
         # Adds an okay and cancel button
         # The left input will respond to button.accepted, and the right to button.rejected
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.setStyleSheet(dialog_button_style)
+
         dlg_layout.addWidget(buttons)
 
         buttons.accepted.connect(self.accept)

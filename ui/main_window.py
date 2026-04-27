@@ -1,39 +1,44 @@
 import sys
 import copy
 from commands.commands import (SetNameCommand, SetACCommand, SetInitiativeCommand, SetHPTotCommand, \
-    SetStatusCommand, SetSpellSlotsCommand,SetAbilitiesCommand, SetConditionsCommand, AdvanceRoundCommand, ResetRoundCommand)
+    SetStatusCommand, SetSpellSlotsCommand,SetAbilitiesCommand, SetConditionsCommand, AdvanceRoundCommand, ResetRoundCommand,
+                               ClearTrackerCommand, SetEncounterTitleCommand, SetPermanentCommand, ClearTrackerCompletelyCommand)
 from models.combatant import Combatant
 
 from services.combat_manager import CombatManager
-from services.maths import is_whole_number
 from services.undo_manager import UndoManager
 
 from ui.delegates.damage_delegate import DamageDelegate
-from ui.themes import apply_theme,DARK_THEME,LIGHT_THEME
+from ui.styling.themes import apply_theme,DARK_THEME,LIGHT_THEME
 from ui.dialogs.ability_dialog import AbilityDialog
 from ui.dialogs.spell_dialog import SpellDialog
 from ui.dialogs.conditions_dialog import ConditionsDialog
+from ui.dialogs.name_encounter_dialog import NameEncounterDialog
+from ui.dialogs.confirmation_dialog import ConfirmationDialog
 from ui.table_mapper import CombatTableMapper
 
 from PySide6.QtCore import Qt
 
 from PySide6.QtWidgets import (QMainWindow, QApplication, QWidget, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout, QLineEdit, QPushButton, QHBoxLayout,
+                               QVBoxLayout, QLineEdit, QPushButton, QHBoxLayout,
                                QSpinBox, QMenu, QLabel, QFileDialog, QMessageBox)
 
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QFont
 from functools import partial
 
-
-
-def format_initiative(x):
-    return str(int(x)) if is_whole_number(x) else str(x)
 
 # Helper function to create labeled input
 def labeled_input(label_text, widget):
     layout = QVBoxLayout()
     layout.setAlignment(Qt.AlignTop)  # Align label + input to the top
+
     label = QLabel(label_text)
+    label.setStyleSheet("font-weight: 600")
+
+    # Match the visual left edge of the input text
+    left_margin = 5
+    label.setContentsMargins(left_margin, 0, 0, 0)
+
     layout.addWidget(label)
     layout.addWidget(widget)
     return layout
@@ -54,6 +59,16 @@ class MainWindow(QMainWindow):
         self.menu_bar = self.menuBar()  # QMainWindow already provides menuBar()
         self.file_menu = self.menu_bar.addMenu("File")  # Creates 'File' dropdown
 
+        #Name Encounter
+        entitle_encounter_action = QAction("Name Encounter",self)
+        entitle_encounter_action.triggered.connect(self.open_encounter_title_dialog)
+        self.file_menu.addAction(entitle_encounter_action)
+
+        #Clear Encounter Completely
+        clear_encounter_completely_action = QAction("Clear Tracker Completely",self)
+        clear_encounter_completely_action.triggered.connect(self.clear_tracker_completely)
+        self.file_menu.addAction(clear_encounter_completely_action)
+
         # Open Encounter
         open_action = QAction("Open Encounter...", self)
         open_action.triggered.connect(self.open_encounter)
@@ -68,6 +83,8 @@ class MainWindow(QMainWindow):
         save_as_action = QAction("Save Encounter As...", self)
         save_as_action.triggered.connect(self.save_encounter_as)
         self.file_menu.addAction(save_as_action)
+
+
 
         # Adding a settings menu to the menu bar
         self.settings_menu = self.menu_bar.addMenu("Settings")
@@ -88,7 +105,20 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels(["Name", "Initiative", "AC", "Damage Taken", "Total HP", "Conditions", "Status"])
 
+        #Make header semi-bold
+        # self.table.horizontalHeader().setStyleSheet("""
+        # QHeaderView::section {
+        #     font-weight: 600;
+        # }
+        # """)
+        # font = self.table.horizontalHeader().font()
+        # font.setWeight(QFont.DemiBold)
+        # font.setItalic(True)
+        # font.setPointSize(10)
+        # self.table.horizontalHeader().setFont(font)
+
         self.table_mapper = CombatTableMapper(self.table,self.comb_manager)
+
 
         #Setting up a signal for when cells are double-clicked.
         self.table.itemDoubleClicked.connect(self.on_item_double_clicked)
@@ -110,6 +140,7 @@ class MainWindow(QMainWindow):
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Creature Name")
         name_layout = labeled_input("Combatant Name:", self.name_input)
+        self.name_input.setMinimumWidth(150)
 
         self.initiative_input = QSpinBox()
         self.initiative_input.setRange(0, 50)
@@ -126,10 +157,52 @@ class MainWindow(QMainWindow):
         #Creating a button for adding combatants
         self.add_button = QPushButton("Add Combatant")
         self.add_button.clicked.connect(self.on_add_combatant_clicked)
+        # self.add_button.setMinimumHeight(32) #This and the next is one style
+        # self.add_button.setStyleSheet("font-weight: bold;")
+        # self.add_button.setIcon(QIcon.fromTheme("list-add")) #This is another style
         add_button_layout = QVBoxLayout()
         add_button_layout.addWidget(QLabel(""))  # empty space above the button
         add_button_layout.setAlignment(Qt.AlignTop)
         add_button_layout.addWidget(self.add_button)
+        self.add_button.setStyleSheet("""
+            QPushButton {
+                font-weight: 600;
+                padding: 6px 12px;
+                border-radius: 6px;
+                border: 1px solid #777;
+            }
+
+            QPushButton:hover {
+                background-color: rgba(0, 0, 0, 0.08);
+                }
+
+            QPushButton:pressed {
+                background-color: rgba(0, 0, 0, 0.15);
+            }
+        """)
+        #background - color:  # 3A7CA5;
+
+        #Create a field for setting encounter title
+        self.encounter_title = QLabel("Untitled Encounter")
+        self.encounter_title.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.encounter_title.setMinimumWidth(200)
+        encounter_font = QFont("Palatino Linotype")
+        encounter_font.setPointSize(20)
+        encounter_font.setWeight(QFont.DemiBold)
+        self.encounter_title.setFont(encounter_font)
+        self.style_encounter()
+
+        #Input Layout
+        input_layout = QHBoxLayout()
+        input_layout.addLayout(name_layout)
+        input_layout.addLayout(initiative_layout)
+        input_layout.addLayout(ac_layout)
+        input_layout.addLayout(hp_layout)
+        input_layout.addSpacing(10)
+        input_layout.addLayout(add_button_layout)
+        input_layout.addStretch()
+
+        input_layout.addWidget(self.encounter_title)
 
         #Set custom context menu
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -141,14 +214,6 @@ class MainWindow(QMainWindow):
         # Allow multiple rows to be selected
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
 
-        #Input Layout
-        input_layout = QHBoxLayout()
-        input_layout.addLayout(name_layout)
-        input_layout.addLayout(initiative_layout)
-        input_layout.addLayout(ac_layout)
-        input_layout.addLayout(hp_layout)
-        input_layout.addLayout(add_button_layout)
-        input_layout.addStretch()
 
 
         # Building a bottom status bar:
@@ -156,6 +221,14 @@ class MainWindow(QMainWindow):
         self.round_label = QLabel()
         self.update_round_display()
         self.next_round_button = QPushButton("Next Round")
+        self.next_round_button.setStyleSheet("""
+            QPushButton {
+                padding: 6px 6px;
+                border-radius: 6px;
+                border: 1px solid #777;
+            }
+            """
+            )
         self.next_round_button.clicked.connect(self.on_next_round_clicked)
         self.next_round_button.setShortcut("Space")
 
@@ -165,6 +238,7 @@ class MainWindow(QMainWindow):
         #Main Layout
         main_layout = QVBoxLayout() #Tells the Qwidget to use a vertical box layout
         main_layout.addLayout(input_layout) #Adds the input layout on top
+        main_layout.addSpacing(10)
         main_layout.addWidget(self.table) #Adds the table to the layout
 
 
@@ -173,6 +247,25 @@ class MainWindow(QMainWindow):
         central.setLayout(main_layout)  # Tells the window to use the named layout
         self.setCentralWidget(central)
 
+        self.apply_light_theme()
+
+        #This removes the "focus square" when selecting row
+        self.table.setFocusPolicy(Qt.NoFocus)
+
+    def open_encounter_title_dialog(self):
+        dialog = NameEncounterDialog(self)
+        if dialog.exec():
+            new_name = dialog.get_data()
+            self.undo_manager.do(SetEncounterTitleCommand(self.comb_manager, new_name))
+            self.update_encounter_title()
+
+    def clear_tracker_completely(self):
+        dialog = ConfirmationDialog(self, warning_text="Deleting all combatants (including permanent)")
+        if dialog.exec():
+            self.undo_manager.do(ClearTrackerCompletelyCommand(self.comb_manager))
+            self.sort_table_initiative()
+            self.update_round_display()
+            self.update_encounter_title()
 
     def save_encounter(self):
         # Open a file dialog
@@ -210,6 +303,10 @@ class MainWindow(QMainWindow):
 
                 # After loading, rebuild the table UI
                 self.sort_table_initiative()
+                self.update_round_display()
+                self.update_encounter_title()
+
+                self.undo_manager.clear_queue()
 
             except Exception as e:
                 # If there’s an error (e.g., invalid file), show a message box
@@ -220,8 +317,22 @@ class MainWindow(QMainWindow):
                 )
 
     def update_round_display(self):
-
         self.round_label.setText(f"Round: {self.comb_manager.round}")
+
+    def update_encounter_title(self):
+        self.encounter_title.setText(self.comb_manager.encounter_title)
+
+    def style_encounter(self):
+        if self.table_mapper.dark_mode:
+            self.encounter_title.setStyleSheet("""
+            color: #f0f0f0;
+            padding: 2px 6px;
+        """)
+        else:
+            self.encounter_title.setStyleSheet("""
+            color: #B82A27;
+            padding: 2px 6px;
+            """)
 
     #This method handles the right click context menu !!!
     def show_context_menu(self, pos):
@@ -244,6 +355,11 @@ class MainWindow(QMainWindow):
         reset_round_action = menu.addAction("Reset Round")
         reset_round_action.triggered.connect(self.handle_round_reset)
 
+        reset_encounter_action = menu.addAction("Clear Tracker")
+        reset_encounter_action.triggered.connect(self.handle_clear_tracker)
+
+        sort_action = menu.addAction("Sort By Initiative")
+        sort_action.triggered.connect(self.sort_table_initiative)
 
         #Position sensitive part of menu.
         #Only rendered if a row is clicked.
@@ -254,8 +370,10 @@ class MainWindow(QMainWindow):
 
             duplicate_action = menu.addAction("Duplicate Combatant")
             duplicate_action.triggered.connect(partial(self.handle_duplicate,clicked_row))
-            sort_action = menu.addAction("Sort By Initiative")
-            sort_action.triggered.connect(self.sort_table_initiative)
+
+            permanent_action = menu.addAction("Toggle Permanent Combatant")
+            permanent_action.triggered.connect(partial(self.handle_permanent,clicked_row))
+
             spells_action = menu.addAction("Add/Remove Spell Slots")
             spells_action.triggered.connect(partial(self.open_spell_slots_dialogue,clicked_row))
 
@@ -267,19 +385,28 @@ class MainWindow(QMainWindow):
 
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
-    #These three handler methods handle parts of the context menu
+    #These handler methods handle parts of the context menu
     def handle_undo(self):
         self.undo_manager.undo()
         self.sort_table_initiative()
         self.update_round_display()
+        self.update_encounter_title()
 
     def handle_redo(self):
         self.undo_manager.redo()
         self.sort_table_initiative()
+        self.update_round_display()
+        self.update_encounter_title()
 
     def handle_round_reset(self):
         self.undo_manager.do(ResetRoundCommand(self.comb_manager))
         self.update_round_display()
+
+    def handle_clear_tracker(self):
+        self.undo_manager.do(ClearTrackerCommand(self.comb_manager))
+        self.sort_table_initiative()
+        self.update_round_display()
+        self.update_encounter_title()
 
     def handle_remove_combatant(self,clicked_row):
         selected_indices = self.table.selectionModel().selectedRows()  # Setting up a collection of selected rows to possibly delete multiple combatants
@@ -293,6 +420,10 @@ class MainWindow(QMainWindow):
     def handle_duplicate(self,row):
         self.table_mapper.duplicate_combatant_in_table(row)
         self.sort_table_initiative()
+
+    def handle_permanent(self,clicked_row):
+        combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
+        self.undo_manager.do(SetPermanentCommand(self.comb_manager,combatant_id))
 
     def open_spell_slots_dialogue(self,clicked_row):
         dialog = SpellDialog(self)
@@ -334,7 +465,6 @@ class MainWindow(QMainWindow):
             ))
 
             self.table_mapper.update_combatant_row(row,combatant)
-
 
 
     #This method handles what happens when the add combatant button is clicked
@@ -449,21 +579,16 @@ class MainWindow(QMainWindow):
             self.open_conditions_dialog(row)
             return
 
-        # combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-        #
-        # # prevent signal loop while we modify UI
-        # self.rebuilding = True
-        # try:
-        #     item.setText(combatant.damage_expr)
-        # finally:
-        #     self.rebuilding = False
-
     # Settings Methods
     def apply_light_theme(self):
         apply_theme(LIGHT_THEME)
+        self.table_mapper.dark_mode=False
+        #self.table_mapper.style_headers()
 
     def apply_dark_theme(self):
         apply_theme(DARK_THEME)
+        self.table_mapper.dark_mode=True
+        #self.table_mapper.style_headers()
 
     #------------------------- HOLDING ----------------#
     def give_combatant_spell_slots(self, row: int, level: int):
