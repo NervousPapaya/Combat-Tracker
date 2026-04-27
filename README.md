@@ -64,11 +64,13 @@ Contributors names and contact info:
     * tracking abilities
 
 
-<!--
+
 ## License
 
-This project is licensed under the [NAME HERE] License - see the LICENSE.md file for details
+This project is licensed for non-commercial use only.
+You may not use this software or derivatives for commercial purposes without explicit permission from the author.
 
+<!--
 ## Acknowledgments
 
 Inspiration, code snippets, etc.
