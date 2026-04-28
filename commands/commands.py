@@ -147,7 +147,62 @@ class SetPermanentCommand(Command):
     def undo(self):
         self.manager.toggle_combatant_permanent(self.cid)
 
+### The next block handles commands that duplicate or remove combatants
 
+class DuplicateCombatantCommand(Command):
+    def __init__(self,manager,cid):
+        self.manager = manager
+        self.cid = cid
+        self.duplicate_cid = None
+
+    def execute(self):
+        self.duplicate_cid = self.manager.duplicate_combatant(self.cid)
+
+    def undo(self):
+        self.manager.remove_combatant_by_id(self.duplicate_cid)
+
+class DuplicateCombatantNTimesCommand(Command):
+    def __init__(self, manager, cid, number):
+        self.manager = manager
+        self.cid = cid
+        self.number = number
+        self.duplicate_cid_list = None
+
+    def execute(self):
+        self.duplicate_cid_list = self.manager.duplicate_combatant_n_times(self.cid,self.number)
+
+    def undo(self):
+        self.manager.remove_combatants_by_id_list(self.duplicate_cid_list)
+
+class DeleteCombatantCommand(Command):
+    def __init__(self,manager,cid):
+        self.manager = manager
+        self.cid = cid
+        self.old_combatant = None
+
+    def execute(self):
+        self.old_combatant = copy.deepcopy(self.manager.get_combatant_by_id(self.cid))
+        self.manager.remove_combatant_by_id(self.cid)
+
+    def undo(self):
+        self.manager.add_combatant(self.old_combatant)
+
+class DeleteMultipleCombatantsCommand(Command):
+    def __init__(self,manager, cid_list):
+        self.manager = manager
+        self.cid_list = cid_list
+        self.old_combatants_list = []
+
+    def execute(self):
+        for cid in self.cid_list:
+            combatant = copy.deepcopy(self.manager.remove_combatant_by_id(cid))
+            self.old_combatants_list.append(combatant)
+
+    def undo(self):
+        for combatant in self.old_combatants_list:
+            self.manager.add_combatant(combatant)
+
+## This block has commands which handle meta-data or state level changes
 
 class AdvanceRoundCommand(Command):
     def __init__(self, manager):

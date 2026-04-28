@@ -8,12 +8,15 @@ from models.combatant import Combatant
 from services.formating import abilities_to_list, spell_slots_to_list, format_initiative, format_conditions
 from ui.abilitywidget import AbilityTrackerWidget
 from ui.styling.color_themes import column_coloring_dark,column_coloring_light
+from commands.commands import DuplicateCombatantNTimesCommand,DuplicateCombatantCommand,DeleteCombatantCommand,DeleteMultipleCombatantsCommand
+
 
 #This class should handle the table in the main UI
 class CombatTableMapper:
-    def __init__(self, table, combat_manager):
+    def __init__(self, table, combat_manager,undo_manager):
         self.table=table
         self.comb_manager = combat_manager
+        self.undo_manager = undo_manager
 
         #This dictionary keeps a master list of all possible columns and their relative positions
         self.column_priority = {
@@ -119,10 +122,30 @@ class CombatTableMapper:
         combatant_id = self.fetch_combatant_id(row)
         self.comb_manager.duplicate_combatant(combatant_id)
 
-    def remove_combatant_from_table(self,row):
+    def duplicate_combatant_in_table_n_times(self,row,num_copies):
         combatant_id = self.fetch_combatant_id(row)
-        self.comb_manager.remove_combatant_by_id(combatant_id)
-        self.table.removeRow(row)
+        self.undo_manager.do(DuplicateCombatantNTimesCommand(self.comb_manager,combatant_id,num_copies))
+        #self.comb_manager.duplicate_combatant_n_times(combatant_id,num_copies)
+
+    def remove_combatant_from_table(self,row,selected_indices):
+        # We check if the user has selected multiple rows, and if so we remove those
+        if selected_indices:
+            cid_list = []
+            for index in selected_indices:
+                row = index.row()
+                cid_list.append(self.fetch_combatant_id(row))
+            self.undo_manager.do(DeleteMultipleCombatantsCommand(self.comb_manager,cid_list))
+        else:
+            combatant_id = self.fetch_combatant_id(row)
+            self.undo_manager.do(DeleteCombatantCommand(self.comb_manager,combatant_id))
+        #self.comb_manager.remove_combatant_by_id(combatant_id)
+        #self.table.removeRow(row)
+
+    #def remove_combatant_from_table(self,row):
+        #combatant_id = self.fetch_combatant_id(row)
+        #self.comb_manager.remove_combatant_by_id(combatant_id)
+        #self.table.removeRow(row)
+
 
     def update_combatant_row(self, row: int, combatant: Combatant):
         """

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox, QLabel, QDialogButtonBox
 from ui.styling.dialog_buttons_style import dialog_button_style
+import copy
 
 class NameEncounterDialog(QDialog):
     def __init__(self,parent=None,current_name=None):
@@ -38,4 +39,4 @@ class NameEncounterDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
     def get_data(self):
-        return self.name_input.text()
+        return copy.deepcopy(self.name_input.text())

@@ -10,11 +10,13 @@ from services.undo_manager import UndoManager
 
 from ui.delegates.damage_delegate import DamageDelegate
 from ui.styling.themes import apply_theme,DARK_THEME,LIGHT_THEME
+
 from ui.dialogs.ability_dialog import AbilityDialog
 from ui.dialogs.spell_dialog import SpellDialog
 from ui.dialogs.conditions_dialog import ConditionsDialog
 from ui.dialogs.name_encounter_dialog import NameEncounterDialog
 from ui.dialogs.confirmation_dialog import ConfirmationDialog
+from ui.dialogs.duplicate_dialog import DuplicateDialog
 from ui.table_mapper import CombatTableMapper
 
 from PySide6.QtCore import Qt
@@ -117,7 +119,7 @@ class MainWindow(QMainWindow):
         # font.setPointSize(10)
         # self.table.horizontalHeader().setFont(font)
 
-        self.table_mapper = CombatTableMapper(self.table,self.comb_manager)
+        self.table_mapper = CombatTableMapper(self.table,self.comb_manager,self.undo_manager)
 
 
         #Setting up a signal for when cells are double-clicked.
@@ -371,6 +373,9 @@ class MainWindow(QMainWindow):
             duplicate_action = menu.addAction("Duplicate Combatant")
             duplicate_action.triggered.connect(partial(self.handle_duplicate,clicked_row))
 
+            duplicate_mult_action = menu.addAction("Duplicate multiple")
+            duplicate_mult_action.triggered.connect(partial(self.handle_duplicate_mult,clicked_row))
+
             permanent_action = menu.addAction("Toggle Permanent Combatant")
             permanent_action.triggered.connect(partial(self.handle_permanent,clicked_row))
 
@@ -409,17 +414,25 @@ class MainWindow(QMainWindow):
         self.update_encounter_title()
 
     def handle_remove_combatant(self,clicked_row):
-        selected_indices = self.table.selectionModel().selectedRows()  # Setting up a collection of selected rows to possibly delete multiple combatants
-        # We check if the user has selected multiple rows, and if so we remove those
-        if selected_indices:
-            for index in sorted(selected_indices, key=lambda x: x.row(), reverse=True):
-                self.table_mapper.remove_combatant_from_table(index.row())
-        else:  # Else we simply delete the clicked row
-            self.table_mapper.remove_combatant_from_table(clicked_row)
+        selected_rows = self.table.selectionModel().selectedRows()  # Setting up a collection of selected rows to possibly delete multiple combatants
+        self.table_mapper.remove_combatant_from_table(clicked_row,selected_rows)
+        self.sort_table_initiative()
+        #if selected_rows:
+        #    for index in sorted(selected_rows, key=lambda x: x.row(), reverse=True):
+        #        self.table_mapper.remove_combatant_from_table(index.row())
+        #else:  # Else we simply delete the clicked row
+        #    self.table_mapper.remove_combatant_from_table(clicked_row)
 
     def handle_duplicate(self,row):
         self.table_mapper.duplicate_combatant_in_table(row)
         self.sort_table_initiative()
+
+    def handle_duplicate_mult(self,row):
+        dialog = DuplicateDialog(self)
+        if dialog.exec():
+            num_copies = dialog.get_data()
+            self.table_mapper.duplicate_combatant_in_table_n_times(row,num_copies)
+            self.sort_table_initiative()
 
     def handle_permanent(self,clicked_row):
         combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)

@@ -104,13 +104,25 @@ class CombatManager:
         duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
 
         self.add_combatant(duplicate)
+        return duplicate.id
+
+    def duplicate_combatant_n_times(self,cid: uuid.UUID,num_copies:int):
+        duplicate_cid_list = []
+        for i in range(0,num_copies):
+            duplicate_id = self.duplicate_combatant(cid)
+            duplicate_cid_list.append(duplicate_id)
+        return duplicate_cid_list
 
     #Since having moved to storing the combatants as a dictionary, with cid as keys, the following method could probably be replaced
     def get_combatant_by_id(self,cid):
         return self.combatants[cid]
 
     def remove_combatant_by_id(self, cid):
-        return self.combatants.pop(cid, None) is not None
+        return self.combatants.pop(cid)
+
+    def remove_combatants_by_id_list(self,cid_list:list):
+        for cid in cid_list:
+            self.remove_combatant_by_id(cid)
 
     def update_combatant_by_id(self,cid,combatant):
         self.combatants[cid] = combatant
