@@ -45,6 +45,11 @@ class CombatManager:
     def set_encounter_title(self, title:str):
         self.encounter_title = title
 
+    def create_and_add_combatant(self,name,initiative,ac,hp):
+        combatant = Combatant(name, initiative, ac, hp)
+        self.add_combatant(combatant)
+        return combatant.id
+
     def add_combatant(self, combatant: Combatant):
         if not isinstance(combatant, Combatant):
             raise TypeError("Must add a Combatant")

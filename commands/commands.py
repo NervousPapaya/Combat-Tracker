@@ -149,6 +149,20 @@ class SetPermanentCommand(Command):
 
 ### The next block handles commands that duplicate or remove combatants
 
+class AddCombatantCommand(Command):
+    def __init__(self,manager,name,initiative,ac,hp):
+        self.manager = manager
+        self.name = name
+        self.initiative = initiative
+        self.ac = ac
+        self.hp = hp
+        self.cid = None
+
+    def execute(self):
+        self.cid = copy.deepcopy(self.manager.create_and_add_combatant(self.name, self.initiative, self.ac, self.hp))
+    def undo(self):
+        self.manager.remove_combatant_by_id(self.cid)
+
 class DuplicateCombatantCommand(Command):
     def __init__(self,manager,cid):
         self.manager = manager

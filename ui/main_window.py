@@ -2,7 +2,7 @@ import sys
 import copy
 from commands.commands import (SetNameCommand, SetACCommand, SetInitiativeCommand, SetHPTotCommand, \
     SetStatusCommand, SetSpellSlotsCommand,SetAbilitiesCommand, SetConditionsCommand, AdvanceRoundCommand, ResetRoundCommand,
-                               ClearTrackerCommand, SetEncounterTitleCommand, SetPermanentCommand, ClearTrackerCompletelyCommand)
+                               ClearTrackerCommand, SetEncounterTitleCommand, SetPermanentCommand, ClearTrackerCompletelyCommand, AddCombatantCommand)
 from models.combatant import Combatant
 
 from services.combat_manager import CombatManager
@@ -487,8 +487,9 @@ class MainWindow(QMainWindow):
         ac = self.ac_input.value()
         hp = self.hp_total_input.value()
         if name:
-            combatant = Combatant(name,initiative,ac,hp)
-            self.comb_manager.add_combatant(combatant)
+            self.undo_manager.do(AddCombatantCommand(self.comb_manager,name,initiative,ac,hp))
+            # combatant = Combatant(name,initiative,ac,hp)
+            # self.comb_manager.add_combatant(combatant)
 
             #After adding, clears input
             self.name_input.clear()

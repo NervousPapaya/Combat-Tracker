@@ -120,7 +120,8 @@ class CombatTableMapper:
 
     def duplicate_combatant_in_table(self,row):
         combatant_id = self.fetch_combatant_id(row)
-        self.comb_manager.duplicate_combatant(combatant_id)
+        self.undo_manager.do(DuplicateCombatantCommand(self.comb_manager,combatant_id))
+        #self.comb_manager.duplicate_combatant(combatant_id)
 
     def duplicate_combatant_in_table_n_times(self,row,num_copies):
         combatant_id = self.fetch_combatant_id(row)
@@ -152,21 +153,6 @@ class CombatTableMapper:
         Update all cells in table for a specific row from the combatant object.
         This avoids searching by name and prevents NoneType errors
         """
-        # if not self.table.item(row, self.col_index["Name"]):
-        #     self.table.setItem(row,self.col_index["Name"],QTableWidgetItem())
-        # if not self.table.item(row,self.col_index["Initiative"]):
-        #     self.table.setItem(row, self.col_index["Initiative"], QTableWidgetItem())
-        # if not self.table.item(row, self.col_index["AC"]):
-        #     self.table.setItem(row,self.col_index["AC"],QTableWidgetItem())
-        # if not self.table.item(row, self.col_index["Damage"]):
-        #     self.table.setItem(row, self.col_index["Damage"], QTableWidgetItem())
-        # if not self.table.item(row, self.col_index["HP"]):
-        #     self.table.setItem(row, self.col_index["HP"], QTableWidgetItem())
-        # if not self.table.item(row, self.col_index["Status"]):
-        #     self.table.setItem(row, self.col_index["Status"], QTableWidgetItem())
-        # if not self.table.item(row, self.col_index["Conditions"]):
-        #     self.table.setItem(row, self.col_index["Conditions"], QTableWidgetItem())
-
         name_item = self.get_item(row, self.col_index["Name"])
         initiative_item = self.get_item(row,self.col_index["Initiative"])
         ac_item = self.get_item(row,self.col_index["AC"])
@@ -189,17 +175,6 @@ class CombatTableMapper:
         conditions_string = format_conditions(combatant)
         conditions_item.setText(str(conditions_string))
 
-        # self.table.item(row,self.col_index["Name"]).setText(combatant.name)
-        # self.table.item(row, self.col_index["Name"]).setData(Qt.UserRole, combatant.id)
-        # initiative = format_initiative(combatant.initiative)
-        # self.table.item(row,self.col_index["Initiative"]).setText(initiative)
-        # self.table.item(row,self.col_index["AC"]).setText(str(combatant.ac))
-        # self.table.item(row,self.col_index["Damage"]).setText(str(combatant.damage_taken))
-        # self.table.item(row,self.col_index["HP"]).setText(str(combatant.hp_total))
-        # self.table.item(row,self.col_index["Status"]).setText(str(combatant.status))
-        # conditions_string = format_conditions(combatant)
-        # item = self.table.item(row,self.col_index["Conditions"]).setText(str(conditions_string))
-        # item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         self.update_row_color(row)
 
