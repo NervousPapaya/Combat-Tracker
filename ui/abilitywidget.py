@@ -22,6 +22,8 @@ class AbilityTrackerWidget(QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         #We set the spacing between the content of the cell
         layout.setSpacing(2)
+        self.setStyleSheet("background: transparent;")
+
 
         #Initializing a list of hboxes which will act as our rows
         num_of_rows = ceil(len(abilities_with_count)/2)

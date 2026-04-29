@@ -58,6 +58,16 @@ QMenu {
     background-color: #2b2b2b;
     color: #f0f0f0;
 }
+
+QCheckBox::indicator {
+    border: 1px solid #aaa;
+    background-color: #2b2b2b;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #6ea8fe;  /* brighter blue */
+    border: 1px solid #6ea8fe;
+}
 """
 
 LIGHT_THEME = """
@@ -99,12 +109,6 @@ QHeaderView::section   {
     }
 
 
-QTableWidget::item:selected {
-    background-color: rgba(90, 106, 138, 0.6);
-    color: white;
-    border: none;
-}
-
 QTableWidget::item:focus {
     outline: none;
 }
@@ -114,6 +118,17 @@ QMenu {
     color: #000000;
 }
 
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555;
+    background-color: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4a90e2;  /* pick your accent color */
+    border: 1px solid #4a90e2;
+}
 
 """
 

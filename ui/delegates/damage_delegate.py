@@ -36,7 +36,7 @@ class DamageDelegate(QStyledItemDelegate):
             value = safe_eval(text)
 
             # Update via undo system
-            self.parent.undo_manager.do(
+            self.parent.command_manager.do(
                 SetDamageCommand(
                     manager=self.manager,
                     cid=combatant_id,
@@ -45,11 +45,11 @@ class DamageDelegate(QStyledItemDelegate):
                 )
             )
 
-            # IMPORTANT: set evaluated value in UI
             model.setData(index, str(value), Qt.EditRole)
             self.refresh_row(row)
 
+            # IMPORTANT: set evaluated value in UI
         except Exception:
-            # rollback
             combatant = self.manager.get_combatant_by_id(combatant_id)
-            model.setData(index, str(combatant.damage_taken), Qt.EditRole)
+            model.setData(index, str(combatant.damage_taken), Qt.DisplayRole)
+            # model.setData(index, str(value), Qt.EditRole)

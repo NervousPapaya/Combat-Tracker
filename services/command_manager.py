@@ -1,8 +1,7 @@
 
 # The purpose of this manager is to store commands executed for undo and redo actions.
 
-# Right now there is no limit.
-class UndoManager:
+class CommandManager:
     def __init__(self, limit=25):
         self.undo_stack = []
         self.redo_stack = []

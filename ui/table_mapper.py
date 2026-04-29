@@ -13,10 +13,15 @@ from commands.commands import DuplicateCombatantNTimesCommand,DuplicateCombatant
 
 #This class should handle the table in the main UI
 class CombatTableMapper:
-    def __init__(self, table, combat_manager,undo_manager):
+    def __init__(self, table, combat_manager,command_manager):
         self.table=table
+
+
+        self.table.selectionModel().selectionChanged.connect(self.on_selection_changed)
+
+
         self.comb_manager = combat_manager
-        self.undo_manager = undo_manager
+        self.command_manager = command_manager
 
         #This dictionary keeps a master list of all possible columns and their relative positions
         self.column_priority = {
@@ -58,6 +63,10 @@ class CombatTableMapper:
 
         #Setting up a dark mode flag
         self.dark_mode = False
+
+    def on_selection_changed(self, selected, deselected):
+        for row in range(self.table.rowCount()):
+            self.update_row_color(row)
 
     def add_combatant_to_table(self, combatant: Combatant):
         row_index = self.table.rowCount()
@@ -120,12 +129,12 @@ class CombatTableMapper:
 
     def duplicate_combatant_in_table(self,row):
         combatant_id = self.fetch_combatant_id(row)
-        self.undo_manager.do(DuplicateCombatantCommand(self.comb_manager,combatant_id))
+        self.command_manager.do(DuplicateCombatantCommand(self.comb_manager,combatant_id))
         #self.comb_manager.duplicate_combatant(combatant_id)
 
     def duplicate_combatant_in_table_n_times(self,row,num_copies):
         combatant_id = self.fetch_combatant_id(row)
-        self.undo_manager.do(DuplicateCombatantNTimesCommand(self.comb_manager,combatant_id,num_copies))
+        self.command_manager.do(DuplicateCombatantNTimesCommand(self.comb_manager,combatant_id,num_copies))
         #self.comb_manager.duplicate_combatant_n_times(combatant_id,num_copies)
 
     def remove_combatant_from_table(self,row,selected_indices):
@@ -135,10 +144,10 @@ class CombatTableMapper:
             for index in selected_indices:
                 row = index.row()
                 cid_list.append(self.fetch_combatant_id(row))
-            self.undo_manager.do(DeleteMultipleCombatantsCommand(self.comb_manager,cid_list))
+            self.command_manager.do(DeleteMultipleCombatantsCommand(self.comb_manager,cid_list))
         else:
             combatant_id = self.fetch_combatant_id(row)
-            self.undo_manager.do(DeleteCombatantCommand(self.comb_manager,combatant_id))
+            self.command_manager.do(DeleteCombatantCommand(self.comb_manager,combatant_id))
         #self.comb_manager.remove_combatant_by_id(combatant_id)
         #self.table.removeRow(row)
 
@@ -153,28 +162,34 @@ class CombatTableMapper:
         Update all cells in table for a specific row from the combatant object.
         This avoids searching by name and prevents NoneType errors
         """
-        name_item = self.get_item(row, self.col_index["Name"])
-        initiative_item = self.get_item(row,self.col_index["Initiative"])
-        ac_item = self.get_item(row,self.col_index["AC"])
-        damage_item = self.get_item(row,self.col_index["Damage"])
-        hp_item = self.get_item(row,self.col_index["HP"])
-        conditions_item = self.get_item(row,self.col_index["Conditions"])
-        status_item = self.get_item(row,self.col_index["Status"])
+        #self.table.blockSignals(True)
+        #self.table.blockSignals(True)
+        try:
+            name_item = self.get_item(row, self.col_index["Name"])
+            initiative_item = self.get_item(row,self.col_index["Initiative"])
+            ac_item = self.get_item(row,self.col_index["AC"])
+            damage_item = self.get_item(row,self.col_index["Damage"])
+            hp_item = self.get_item(row,self.col_index["HP"])
+            conditions_item = self.get_item(row,self.col_index["Conditions"])
+            status_item = self.get_item(row,self.col_index["Status"])
 
-        name_item.setText(combatant.name)
-        name_item.setData(Qt.UserRole, combatant.id)
+            name_item.setText(combatant.name)
+            name_item.setData(Qt.UserRole, combatant.id)
 
-        initiative = format_initiative(combatant.initiative)
-        initiative_item.setText(initiative)
-        ac_item.setText(str(combatant.ac))
-        damage_item.setText(str(combatant.damage_taken))
-        hp_item.setText(str(combatant.hp_total))
-        status_item.setText(str(combatant.status))
+            initiative = format_initiative(combatant.initiative)
+            initiative_item.setText(initiative)
+            ac_item.setText(str(combatant.ac))
+            damage_item.setText(str(combatant.damage_taken))
+            hp_item.setText(str(combatant.hp_total))
+            status_item.setText(str(combatant.status))
 
-        conditions_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-        conditions_string = format_conditions(combatant)
-        conditions_item.setText(str(conditions_string))
-
+            conditions_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            conditions_string = format_conditions(combatant)
+            conditions_item.setText(str(conditions_string))
+        finally:
+            print("test")
+            #self.table.blockSignals(False)
+            #self.table.blockSignals(False)
 
         self.update_row_color(row)
 
@@ -276,24 +291,50 @@ class CombatTableMapper:
     def update_row_color(self, row):
         combatant_id = self.fetch_combatant_id(row)
         combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-        hp_left = combatant.hp_remaining
 
-        if hp_left <= 0:
-            color = "#ff7a7a"  # dead (dark red)
-        elif hp_left <= combatant.hp_total/2:
-            color = "#ffcc66"  # danger (orange/yellow)
-        else:
-            color = None
+        is_selected = self.table.selectionModel().isRowSelected(row, self.table.rootIndex())
+        color = self.resolve_row_color(combatant, is_selected)
 
         for col in range(self.table.columnCount()):
             item = self.table.item(row, col)
-            if not item:
-                continue
+            if item:
+                item.setBackground(color)
 
-            if color:
-                item.setBackground(QColor(color))
-            else:
-                item.setBackground(QColor(0, 0, 0, 0))  # reset
+            #widget = self.table.cellWidget(row,col)
+            #if widget:
+            #    widget.setStyleSheet(f"background-color: {color.name() if color.alpha() > 0 else 'transparent'}")
+
+    def base_hp_color(self, combatant):
+        hp_left = combatant.hp_remaining
+
+        if hp_left <= 0:
+            return QColor("#ff7a7a")  # dead
+        elif hp_left <= combatant.hp_total / 2:
+            return QColor("#ffd43b")  # bloodied
+        else:
+            return QColor(0, 0, 0, 0)  # normal (transparent)
+
+    def resolve_row_color(self, combatant, is_selected: bool):
+        base = self.base_hp_color(combatant)
+
+        if not is_selected:
+            return base
+
+        # selection effect (subtle tint instead of overlay)
+        # if base.alpha() == 0:
+        #     return QColor(90, 106, 138, 40)
+        # selection overlay as alpha blend
+        overlay = QColor(90, 106, 138)
+
+        if base.alpha() == 0:
+            return QColor(overlay.red(), overlay.green(), overlay.blue(), 50)
+
+        # blend selection with HP color
+        r = (base.red() + 90) // 2
+        g = (base.green() + 106) // 2
+        b = (base.blue() + 138) // 2
+
+        return QColor(r, g, b)
 
     def ordered_columns(self):
         return sorted(

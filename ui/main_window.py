@@ -6,7 +6,7 @@ from commands.commands import (SetNameCommand, SetACCommand, SetInitiativeComman
 from models.combatant import Combatant
 
 from services.combat_manager import CombatManager
-from services.undo_manager import UndoManager
+from services.command_manager import CommandManager
 
 from ui.delegates.damage_delegate import DamageDelegate
 from ui.styling.themes import apply_theme,DARK_THEME,LIGHT_THEME
@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100,100,900,600)
 
         self.comb_manager = CombatManager()
-        self.undo_manager = UndoManager()
+        self.command_manager = CommandManager()
 
 
 
@@ -119,7 +119,7 @@ class MainWindow(QMainWindow):
         # font.setPointSize(10)
         # self.table.horizontalHeader().setFont(font)
 
-        self.table_mapper = CombatTableMapper(self.table,self.comb_manager,self.undo_manager)
+        self.table_mapper = CombatTableMapper(self.table,self.comb_manager,self.command_manager)
 
 
         #Setting up a signal for when cells are double-clicked.
@@ -258,13 +258,13 @@ class MainWindow(QMainWindow):
         dialog = NameEncounterDialog(self)
         if dialog.exec():
             new_name = dialog.get_data()
-            self.undo_manager.do(SetEncounterTitleCommand(self.comb_manager, new_name))
+            self.command_manager.do(SetEncounterTitleCommand(self.comb_manager, new_name))
             self.update_encounter_title()
 
     def clear_tracker_completely(self):
         dialog = ConfirmationDialog(self, warning_text="Deleting all combatants (including permanent)")
         if dialog.exec():
-            self.undo_manager.do(ClearTrackerCompletelyCommand(self.comb_manager))
+            self.command_manager.do(ClearTrackerCompletelyCommand(self.comb_manager))
             self.sort_table_initiative()
             self.update_round_display()
             self.update_encounter_title()
@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
                 self.update_round_display()
                 self.update_encounter_title()
 
-                self.undo_manager.clear_queue()
+                self.command_manager.clear_queue()
 
             except Exception as e:
                 # If there’s an error (e.g., invalid file), show a message box
@@ -346,12 +346,12 @@ class MainWindow(QMainWindow):
 
         undo_action = menu.addAction("Undo")
         undo_action.triggered.connect(self.handle_undo)
-        if not self.undo_manager.undo_stack:
+        if not self.command_manager.undo_stack:
             undo_action.setEnabled(False)
 
         redo_action = menu.addAction("Redo")
         redo_action.triggered.connect(self.handle_redo)
-        if not self.undo_manager.redo_stack:
+        if not self.command_manager.redo_stack:
             redo_action.setEnabled(False)
 
         reset_round_action = menu.addAction("Reset Round")
@@ -392,23 +392,23 @@ class MainWindow(QMainWindow):
 
     #These handler methods handle parts of the context menu
     def handle_undo(self):
-        self.undo_manager.undo()
+        self.command_manager.undo()
         self.sort_table_initiative()
         self.update_round_display()
         self.update_encounter_title()
 
     def handle_redo(self):
-        self.undo_manager.redo()
+        self.command_manager.redo()
         self.sort_table_initiative()
         self.update_round_display()
         self.update_encounter_title()
 
     def handle_round_reset(self):
-        self.undo_manager.do(ResetRoundCommand(self.comb_manager))
+        self.command_manager.do(ResetRoundCommand(self.comb_manager))
         self.update_round_display()
 
     def handle_clear_tracker(self):
-        self.undo_manager.do(ClearTrackerCommand(self.comb_manager))
+        self.command_manager.do(ClearTrackerCommand(self.comb_manager))
         self.sort_table_initiative()
         self.update_round_display()
         self.update_encounter_title()
@@ -436,7 +436,7 @@ class MainWindow(QMainWindow):
 
     def handle_permanent(self,clicked_row):
         combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
-        self.undo_manager.do(SetPermanentCommand(self.comb_manager,combatant_id))
+        self.command_manager.do(SetPermanentCommand(self.comb_manager,combatant_id))
 
     def open_spell_slots_dialogue(self,clicked_row):
         dialog = SpellDialog(self)
@@ -446,7 +446,7 @@ class MainWindow(QMainWindow):
             level = dialog.get_data()
             combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
 
-            self.undo_manager.do(SetSpellSlotsCommand(manager=self.comb_manager,cid=combatant_id,new_caster_level=level))
+            self.command_manager.do(SetSpellSlotsCommand(manager=self.comb_manager,cid=combatant_id,new_caster_level=level))
 
             self.table_mapper.draw_combatant_spell_slots(clicked_row,combatant_id)
 
@@ -459,7 +459,7 @@ class MainWindow(QMainWindow):
             ability_name, max_uses = dialog.get_data()
             combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
 
-            self.undo_manager.do(SetAbilitiesCommand(self.comb_manager,combatant_id,ability_name,max_uses))
+            self.command_manager.do(SetAbilitiesCommand(self.comb_manager,combatant_id,ability_name,max_uses))
 
             self.table_mapper.draw_combatant_abilities(clicked_row,combatant_id)
 
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             new_conditions = dialog.get_data()
 
-            self.undo_manager.do(SetConditionsCommand(
+            self.command_manager.do(SetConditionsCommand(
                 manager=self.comb_manager,
                 cid=combatant_id,
                 new_conditions=new_conditions
@@ -487,7 +487,7 @@ class MainWindow(QMainWindow):
         ac = self.ac_input.value()
         hp = self.hp_total_input.value()
         if name:
-            self.undo_manager.do(AddCombatantCommand(self.comb_manager,name,initiative,ac,hp))
+            self.command_manager.do(AddCombatantCommand(self.comb_manager,name,initiative,ac,hp))
             # combatant = Combatant(name,initiative,ac,hp)
             # self.comb_manager.add_combatant(combatant)
 
@@ -502,12 +502,13 @@ class MainWindow(QMainWindow):
 
     #This handler method handles when the next round button is clicked
     def on_next_round_clicked(self):
-        self.undo_manager.do(AdvanceRoundCommand(self.comb_manager))
+        self.command_manager.do(AdvanceRoundCommand(self.comb_manager))
         self.update_round_display()
         self.table_mapper.refresh_table()
 
     #This is the "handler method" which handles cells being changed
     def on_cell_changed(self,row,column):
+        print(self.command_manager.undo_stack)
         if self.rebuilding:
             return
         if column == self.table_mapper.col_index["Damage"]:  # Checking if the edited column was damage taken
@@ -528,21 +529,22 @@ class MainWindow(QMainWindow):
 
         try:
             if column == self.table_mapper.col_index["Name"]:
-                self.undo_manager.do(SetNameCommand(manager=self.comb_manager,cid=combatant_id,new_name=edited_text))
+                self.command_manager.do(SetNameCommand(manager=self.comb_manager,cid=combatant_id,new_name=edited_text))
             elif column == self.table_mapper.col_index["Initiative"]: #Checking if the edited column was initiative
                 initiative = float(edited_text)
-                self.undo_manager.do(SetInitiativeCommand(manager=self.comb_manager,cid=combatant_id,new_initiative=initiative))
-                if any(combatant.initiative >= com.initiative for com in self.comb_manager.combatants.values()):
+                self.command_manager.do(SetInitiativeCommand(manager=self.comb_manager,cid=combatant_id,new_initiative=initiative))
+                init_comb = self.comb_manager.get_combatant_by_id(combatant_id)
+                if any(init_comb.initiative >= com.initiative for com in self.comb_manager.combatants.values()):
                     self.sort_table_initiative()
                 return
             elif column == self.table_mapper.col_index["AC"]: #Checking if the edited column was AC
                 ac=int(edited_text)
-                self.undo_manager.do(SetACCommand(manager=self.comb_manager,cid=combatant_id,new_ac=ac))
+                self.command_manager.do(SetACCommand(manager=self.comb_manager,cid=combatant_id,new_ac=ac))
             elif column == self.table_mapper.col_index["HP"]:  # Checking if the edited column was Hp total
                 hp_tot = int(edited_text)
-                self.undo_manager.do(SetHPTotCommand(manager=self.comb_manager,cid=combatant_id,new_hp=hp_tot))
+                self.command_manager.do(SetHPTotCommand(manager=self.comb_manager,cid=combatant_id,new_hp=hp_tot))
             elif column == self.table_mapper.col_index["Status"]:
-                self.undo_manager.do(SetStatusCommand(manager=self.comb_manager,cid=combatant_id,new_status=edited_text))
+                self.command_manager.do(SetStatusCommand(manager=self.comb_manager,cid=combatant_id,new_status=edited_text))
 
         except Exception as e:
             #This is intended to handle invalid inputs, such as writing abc in the damage taken column.

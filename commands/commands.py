@@ -129,11 +129,11 @@ class SetConditionsCommand(Command):
         self.old_conditions = None
 
     def execute(self):
-        self.old_conditions = self.manager.get_combatant_conditions(self.cid)
+        self.old_conditions = list(self.manager.get_combatant_conditions(self.cid))
         self.manager.set_combatant_conditions(self.cid,self.new_conditions)
 
     def undo(self):
-        self.manager.set_combatant_conditions(self.cid,self.old_conditions)
+        self.manager.set_combatant_conditions(self.cid,list(self.old_conditions))
 
 class SetPermanentCommand(Command):
     def __init__(self, manager, cid):
