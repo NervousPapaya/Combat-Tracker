@@ -1,4 +1,4 @@
-# Project Title
+# Combat Tracker
 
 This program is intended to be used as a combat tracker for tabletop RPGs. 
 
