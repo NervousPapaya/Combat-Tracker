@@ -16,7 +16,7 @@ The application is separated into UI, business logic, and data:
 
 * **Entry point** (`main.py`): A minimal entry point that invokes `run_app()` in the UI layer to start the application.
 * **UI layer** (`ui/`): `main_window.py` orchestrates the interface, with `table_mapper.py` handling the core combatant table and `abilitywidget.py` managing ability-specific widget behavior.
-* **Data layer** (`combatant/`): Combatants are represented as dataclasses (`combatant.py`), keeping combat state explicit and type-safe.
+* **Data layer** (`combatant/`): Combatants are represented as dataclasses (`combatant.py`).
 * **Domain/service layer** (`models/`, `services/`): `combat_manager.py` (in `models/`) owns the combat state and logic, decoupled from the UI. Undo/redo is implemented via the command pattern in `services/command_manager.py`, with individual reversible actions defined in `commands/commands.py`.
 
 ## Getting Started
