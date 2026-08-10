@@ -4,7 +4,7 @@ This program is intended to be used as a combat tracker for tabletop RPGs.
 
 ## Description
 
-The program allows one to track "combatants" in a table layout. Each combatants Initiative, AC, damage taken and HP total can be tracked.
+The program allows one to track "combatants" in a table layout. Each combatant's Initiative, AC, damage taken and HP total can be tracked.
 You can add abilities or spells as checkboxes to each combatant once they have been added to the tracker. 
 There is a "status" field intended for any free-text tracking not covered by the program.
 Furthermore, the program can track conditions and the like on a round to round basis. 
