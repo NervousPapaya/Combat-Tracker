@@ -32,6 +32,12 @@ class DamageDelegate(QStyledItemDelegate):
 
         combatant_id = self.fetch_combatant_id(row)
 
+        combatant = self.manager.get_combatant_by_id(combatant_id)
+        # Safety net: skip if the user didn't actually change the expression
+        if text == combatant.damage_expr:
+            model.setData(index, str(combatant.damage_taken), Qt.EditRole)
+            return
+
         try:
             value = safe_eval(text)
 

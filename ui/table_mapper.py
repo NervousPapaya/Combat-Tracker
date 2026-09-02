@@ -52,7 +52,7 @@ class CombatTableMapper:
             key=lambda name: self.column_priority[name]
         )
         #The following dictionary allows us to get a columns index by its name
-        #Note: This is NOT dynamic and must be updated after each creation of a column. The method for creating columns has this resorting built in.
+        #Note: This is NOT dynamic and must be updated after each creation of a column. The method for creating columns has this re-sorting built in.
         self.col_index = {name: i for i, name in enumerate(ordered_columns)}
 
         #setting up a variable to check if we want a spell slot column
@@ -65,8 +65,14 @@ class CombatTableMapper:
         self.dark_mode = False
 
     def on_selection_changed(self, selected, deselected):
-        for row in range(self.table.rowCount()):
-            self.update_row_color(row)
+
+        #The blocking is technically redundant as update_row_color should block signals itself
+        self.table.blockSignals(True)
+        try:
+            for row in range(self.table.rowCount()):
+                self.update_row_color(row)
+        finally:
+            self.table.blockSignals(False)
 
     def add_combatant_to_table(self, combatant: Combatant):
         row_index = self.table.rowCount()
@@ -117,12 +123,14 @@ class CombatTableMapper:
             self.ensure_spell_slots_column()
             spell_slots = spell_slots_to_list(self.comb_manager.full_caster_progression[caster_level])
             col = self.col_index["Spell Slots"]
+            self.table.setItem(row_index, col, QTableWidgetItem())  # placeholder item, purely for background color
             self.set_ability_widget(row_index,col, combatant.id, spell_slots,True)
 
         if combatant.ability_dict:
             self.ensure_abilities_column()
             abilities = sorted(abilities_to_list(combatant.ability_dict))
             col = self.col_index["Abilities"]
+            self.table.setItem(row_index, col, QTableWidgetItem())  # placeholder item, purely for background color
             self.set_ability_widget(row_index, col,combatant.id, abilities)
 
         self.update_row_color(row_index)
@@ -187,7 +195,8 @@ class CombatTableMapper:
             conditions_string = format_conditions(combatant)
             conditions_item.setText(str(conditions_string))
         finally:
-            print("test")
+            pass
+            #print("test")
             #self.table.blockSignals(False)
             #self.table.blockSignals(False)
 
@@ -266,6 +275,18 @@ class CombatTableMapper:
             self.create_column("Abilities")
             self.abilities_column = True
 
+    def is_cell_unchanged(self, column, text, combatant):
+        if column == self.col_index["Name"]:
+            return text == combatant.name
+        elif column == self.col_index["Initiative"]:
+            return text == format_initiative(combatant.initiative)
+        elif column == self.col_index["AC"]:
+            return text == str(combatant.ac)
+        elif column == self.col_index["HP"]:
+            return text == str(combatant.hp_total)
+        elif column == self.col_index["Status"]:
+            return text == str(combatant.status)
+        return False
 
     def set_ability_widget(self,row: int,col: int ,combatant_id ,abilities,is_spells=False):
         widget = AbilityTrackerWidget(
@@ -295,22 +316,32 @@ class CombatTableMapper:
         is_selected = self.table.selectionModel().isRowSelected(row, self.table.rootIndex())
         color = self.resolve_row_color(combatant, is_selected)
 
-        for col in range(self.table.columnCount()):
-            item = self.table.item(row, col)
-            if item:
-                item.setBackground(color)
+        self.table.blockSignals(True)
+        try:
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item:
+                    item.setBackground(color)
+
+                #These three lines take care of the coloring for the ability widgets
+                widget = self.table.cellWidget(row, col)
+                if widget is not None and hasattr(widget, "set_background_color"):
+                    widget.set_background_color(color)
+        finally:
+            self.table.blockSignals(False)
 
             #widget = self.table.cellWidget(row,col)
             #if widget:
             #    widget.setStyleSheet(f"background-color: {color.name() if color.alpha() > 0 else 'transparent'}")
 
     def base_hp_color(self, combatant):
+        """This methods job is to set the base color of a combatants row"""
         hp_left = combatant.hp_remaining
 
         if hp_left <= 0:
-            return QColor("#ff7a7a")  # dead
+            return QColor("#8a3a3a") if self.dark_mode else QColor("#ff7a7a")  # dead
         elif hp_left <= combatant.hp_total / 2:
-            return QColor("#ffd43b")  # bloodied
+            return QColor("#8a7a2a") if self.dark_mode else QColor("#ffd43b")  # bloodied
         else:
             return QColor(0, 0, 0, 0)  # normal (transparent)
 
@@ -320,21 +351,40 @@ class CombatTableMapper:
         if not is_selected:
             return base
 
-        # selection effect (subtle tint instead of overlay)
-        # if base.alpha() == 0:
-        #     return QColor(90, 106, 138, 40)
-        # selection overlay as alpha blend
-        overlay = QColor(90, 106, 138)
+        overlay = QColor(140, 160, 200) if self.dark_mode else QColor(90, 106, 138)
 
         if base.alpha() == 0:
-            return QColor(overlay.red(), overlay.green(), overlay.blue(), 50)
+            # Blend against the theme's actual base background instead of using alpha transparency,
+            # so the result is always fully opaque and behaves identically to the bloodied/dead case.
+            bg = QColor(43, 43, 43) if self.dark_mode else QColor(255, 255, 255)
+            r = (bg.red() + overlay.red()) // 2
+            g = (bg.green() + overlay.green()) // 2
+            b = (bg.blue() + overlay.blue()) // 2
+            return QColor(r, g, b)
 
-        # blend selection with HP color
-        r = (base.red() + 90) // 2
-        g = (base.green() + 106) // 2
-        b = (base.blue() + 138) // 2
-
+        # blend selection with HP color (unchanged)
+        r = (base.red() + overlay.red()) // 2
+        g = (base.green() + overlay.green()) // 2
+        b = (base.blue() + overlay.blue()) // 2
         return QColor(r, g, b)
+
+        #Old version below. Testing the above
+        # base = self.base_hp_color(combatant)
+        #
+        # if not is_selected:
+        #     return base
+        #
+        # overlay = QColor(90, 106, 138)
+        #
+        # if base.alpha() == 0:
+        #     return QColor(overlay.red(), overlay.green(), overlay.blue(), 50)
+        #
+        # # blend selection with HP color
+        # r = (base.red() + 90) // 2
+        # g = (base.green() + 106) // 2
+        # b = (base.blue() + 138) // 2
+        #
+        # return QColor(r, g, b)
 
     def ordered_columns(self):
         return sorted(
@@ -352,6 +402,7 @@ class CombatTableMapper:
         combatant = self.comb_manager.get_combatant_by_id(combatant_id)
         spell_slots = spell_slots_to_list(combatant.spell_slot_dict)
         col = self.col_index["Spell Slots"]
+        self.table.setItem(clicked_row, col, QTableWidgetItem())  # placeholder item, purely for background color
         self.set_ability_widget(clicked_row, col, combatant_id, spell_slots, True)
 
     def draw_combatant_abilities(self,clicked_row,combatant_id):
@@ -362,7 +413,10 @@ class CombatTableMapper:
         combatant = self.comb_manager.get_combatant_by_id(combatant_id)
         abilities = sorted(abilities_to_list(combatant.ability_dict))
         col = self.col_index["Abilities"]
+        self.table.setItem(clicked_row, col, QTableWidgetItem())  # placeholder item, purely for background color
         self.set_ability_widget(clicked_row, col, combatant_id, abilities)
+
+
 
 
 

@@ -1,6 +1,7 @@
 from math import ceil
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QSizePolicy)
+from PySide6.QtGui import QColor
 
 
 class AbilityTrackerWidget(QWidget):
@@ -133,3 +134,8 @@ class AbilityTrackerWidget(QWidget):
                 self.manager.use_ability(combatant_id,resource_name)
             else:
                 self.manager.regain_ability(combatant_id,resource_name)
+
+    def set_background_color(self, color: QColor):
+        """This method takes care of coloring.
+        Essentially, it sets the background color of all the widgets contained in the ability widget."""
+        self.setStyleSheet(f"QWidget {{ background-color: {color.name(QColor.HexArgb)}; }}")

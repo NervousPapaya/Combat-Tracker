@@ -216,8 +216,6 @@ class MainWindow(QMainWindow):
         # Allow multiple rows to be selected
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
 
-
-
         # Building a bottom status bar:
 
         self.round_label = QLabel()
@@ -508,6 +506,7 @@ class MainWindow(QMainWindow):
 
     #This is the "handler method" which handles cells being changed
     def on_cell_changed(self,row,column):
+        #print command for bug-fixing
         print(self.command_manager.undo_stack)
         if self.rebuilding:
             return
@@ -518,14 +517,19 @@ class MainWindow(QMainWindow):
 
         # Get the id of the combatant in this row
         combatant_id = self.table_mapper.fetch_combatant_id(row)
-        #We copy the combatant for back-up purposes in case a roll-back is needed
-        combatant = copy.deepcopy(self.comb_manager.get_combatant_by_id(combatant_id))
 
         # Get the new value typed by the user
         edited_item = self.table.item(row, column)
         if not edited_item:
             return
         edited_text = edited_item.text()
+
+        live_combatant = self.comb_manager.get_combatant_by_id(combatant_id)
+        if self.table_mapper.is_cell_unchanged(column, edited_text, live_combatant):
+            return
+
+        #We copy the combatant for back-up purposes in case a roll-back is needed
+        combatant = copy.deepcopy(self.comb_manager.get_combatant_by_id(combatant_id))
 
         try:
             if column == self.table_mapper.col_index["Name"]:

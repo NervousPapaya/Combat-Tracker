@@ -1,3 +1,4 @@
+import copy
 import uuid
 import os
 from uuid import UUID
@@ -106,9 +107,12 @@ class CombatManager:
     def duplicate_combatant(self,cid):
         original = self.get_combatant_by_id(cid)
         #setting up a duplicate
-        duplicate = Combatant(original.name,original.initiative,original.ac,original.hp_total)
+        duplicate = copy.deepcopy(original)
+        duplicate.id = uuid.uuid4()
 
+        # adds the duplicate to the combat manager
         self.add_combatant(duplicate)
+
         return duplicate.id
 
     def duplicate_combatant_n_times(self,cid: uuid.UUID,num_copies:int):
@@ -189,7 +193,7 @@ class CombatManager:
         return combatant.status
 
 
-    #The * forces the following arguments to be keyword only
+    #The * forces the succeeding arguments to be keyword only
     def set_caster_level(self,comb_id: uuid.UUID,*,caster_level: int=0):
         if not isinstance(caster_level,int):
             raise TypeError("Caster Level must be an integer.")

@@ -1,0 +1,87 @@
+{
+    "version": 1,
+    "encounter_title": "Template Encounter",
+    "round": 1,
+    "combatants": [
+        {
+            "name": "Ancient Red Dragon",
+            "initiative": 18,
+            "ac": 22,
+            "hp_total": 546,
+            "id": "08d9fafd-b9b7-4712-bc05-94274b720e26",
+            "damage_taken": 0,
+            "damage_expr": "0",
+            "conditions": [],
+            "status": "",
+            "caster_level": 0,
+            "spell_slot_dict": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 0,
+                "6": 0,
+                "7": 0,
+                "8": 0,
+                "9": 0
+            },
+            "ability_dict": {
+                "L.A.": {
+                    "left": 3,
+                    "max": 3
+                }
+            },
+            "permanent": false
+        },
+        {
+            "name": "Hero",
+            "initiative": 5,
+            "ac": 48,
+            "hp_total": 48,
+            "id": "a674c045-2730-4b07-8668-3a2dae4760ff",
+            "damage_taken": 0,
+            "damage_expr": "0",
+            "conditions": [],
+            "status": "",
+            "caster_level": 0,
+            "spell_slot_dict": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 0,
+                "6": 0,
+                "7": 0,
+                "8": 0,
+                "9": 0
+            },
+            "ability_dict": {},
+            "permanent": false
+        },
+        {
+            "name": "Kobold",
+            "initiative": 12,
+            "ac": 12,
+            "hp_total": 5,
+            "id": "69a4b44b-99ef-4630-9816-df1ecda48e70",
+            "damage_taken": 0,
+            "damage_expr": "0",
+            "conditions": [],
+            "status": "",
+            "caster_level": 0,
+            "spell_slot_dict": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 0,
+                "6": 0,
+                "7": 0,
+                "8": 0,
+                "9": 0
+            },
+            "ability_dict": {},
+            "permanent": false
+        }
+    ]
+}

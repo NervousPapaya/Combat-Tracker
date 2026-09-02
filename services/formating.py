@@ -10,7 +10,16 @@ def spell_slots_to_list(spell_dict):
 def format_conditions(combatant: Combatant):
     if not combatant.conditions:
         return ""
-    return ", ".join(f"{c.name} ({c.rounds_left})" for c in combatant.conditions)
+    sorted_cond = sorted( combatant.conditions, key = lambda c : c.name )
+    cond_strings = []
+    for c in sorted_cond:
+        if c.indefinite:
+            cond_strings.append(c.name)
+        else:
+            cond_strings.append(f"{c.name} ({c.rounds_left})")
+    return ", ".join(cond_strings)
+    #cond_str = ", ".join(f"{c.name} ({c.rounds_left})" for c in combatant.conditions if c.indefinite == False)
+    #return ", ".join(f"{c.name} ({c.rounds_left})" for c in combatant.conditions)
 
 def format_initiative(x):
     return str(int(x)) if is_whole_number(x) else str(x)

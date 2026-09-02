@@ -29,15 +29,6 @@ QLineEdit, QSpinBox, QTableWidget {
     selection-background-color: #555555;
 }
 
-QTableWidget::item {
-    border: none;
-}
-
-QTableWidget::item:selected {
-    background-color: rgba(120, 140, 170, 0.35);
-    color: #f0f0f0;
-}
-
 QTableWidget::item:focus {
     outline: none;
 }
@@ -47,7 +38,7 @@ QHeaderView {
 }
 
 QHeaderView::section {
-    background-color: #3a3f4b; /*dark slate*/
+    background-color: #3a3f4b; /* dark slate */
     color:white;
     font-weight: 600;
     padding: 4px;
@@ -59,13 +50,45 @@ QMenu {
     color: #f0f0f0;
 }
 
-QCheckBox::indicator {
+QMenu::item:disabled {
+    color: #6f6f6f;
+}
+
+QCheckBox[checkbox_type="dialogue"]::indicator {
+    width: 14px;
+    height: 14px;
     border: 1px solid #aaa;
     background-color: #2b2b2b;
 }
 
-QCheckBox::indicator:checked {
-    background-color: #6ea8fe;  /* brighter blue */
+QCheckBox[checkbox_type="dialogue"]::indicator:checked {
+    background-color: #2b2b2b;
+    border: 1px solid #aaa;
+    image: url(assets/icons/check-mark-dark.svg);
+}
+
+QCheckBox[resource_type="ability"]::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #aaa;
+    background-color: #2b2b2b;
+}
+
+QCheckBox[resource_type="ability"]::indicator:checked {
+    background-color: #B82A27;  
+    border: 1px solid #B82A27;
+}
+
+
+QCheckBox[resource_type="spell"]::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #aaa;
+    background-color: #2b2b2b;
+}
+
+QCheckBox[resource_type="spell"]::indicator:checked {
+    background-color: #6ea8fe;  
     border: 1px solid #6ea8fe;
 }
 """
@@ -102,12 +125,11 @@ QHeaderView {
 }
 
 QHeaderView::section   {
-    background-color:  #FFF2C7;  /*maroon*/
+    background-color:  #FFF2C7;  /*light yellow*/
     color:black;
     font-weight: 600;
     padding: 4 px;
     }
-
 
 QTableWidget::item:focus {
     outline: none;
@@ -118,15 +140,44 @@ QMenu {
     color: #000000;
 }
 
-QCheckBox::indicator {
+QMenu::item:disabled {
+    color: #a0a0a0;
+}
+
+QCheckBox[checkbox_type="dialogue"]::indicator {
     width: 14px;
     height: 14px;
     border: 1px solid #555;
     background-color: #ffffff;
 }
 
-QCheckBox::indicator:checked {
-    background-color: #4a90e2;  /* pick your accent color */
+QCheckBox[checkbox_type="dialogue"]::indicator:checked {
+    background-color: #ffffff;
+    border: 1px solid #555;
+    image: url(assets/icons/check-mark-light.svg);
+}
+
+QCheckBox[resource_type="ability"]::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555;
+    background-color: #ffffff;
+}
+
+QCheckBox[resource_type="ability"]::indicator:checked {
+    background-color: #B82A27;  /* Testing out, original was 4a90e2 */
+    border: 1px solid #B82A27;
+}
+
+QCheckBox[resource_type="spell"]::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555;
+    background-color: #ffffff;
+}
+
+QCheckBox[resource_type="spell"]::indicator:checked {
+    background-color: #4a90e2;  
     border: 1px solid #4a90e2;
 }
 
