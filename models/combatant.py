@@ -3,6 +3,7 @@ import uuid
 
 @dataclass
 class Ability:
+    name: str
     left: int
     max: int
 
@@ -54,9 +55,12 @@ class Combatant:
     #We set up a dictionary to store ability slots if necessary.
     #As before field and default_factory must be used
     ability_dict: dict = field(default_factory = dict)
+    ability_list: list = field(default_factory = list)
 
     #We set up a flag for whether a combatant should persist upon deletion of the encounter
     permanent: bool = False
+
+
 
     def __post_init__(self):
         if not 0 <= self.caster_level <= 20:
@@ -80,3 +84,8 @@ class Combatant:
         """This method simply computes the spell slots based off the caster level and edits the spell slot dict as necessary."""
         self.spell_slot_dict = spell_slot_table[self.caster_level].copy()
 
+    def get_ability(self, ability_name: str) -> Ability | None:
+        for a in self.ability_list:
+            if a.name == ability_name:
+                return a
+        return None

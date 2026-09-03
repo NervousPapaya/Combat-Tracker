@@ -3,6 +3,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QSizePolicy)
 from PySide6.QtGui import QColor
 
+from models.combatant import Combatant
+
 
 class AbilityTrackerWidget(QWidget):
     """This class handles adding checkmark.
@@ -113,7 +115,7 @@ class AbilityTrackerWidget(QWidget):
             used = total_count - combatant.spell_slot_dict[spell_level]
             cb.setChecked(index < used)
         else:
-            ability = combatant.ability_dict[ability_name]
+            ability = combatant.get_ability(ability_name)
             used = ability.max - ability.left
             cb.setChecked(index < used)
 

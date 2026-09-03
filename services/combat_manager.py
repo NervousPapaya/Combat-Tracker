@@ -216,30 +216,32 @@ class CombatManager:
         if combatant.spell_slot_dict[level] >0:
             combatant.spell_slot_dict[level] -= 1
 
-    def add_ability(self,comb_id: uuid.UUID,ability_name: str, maximum_uses: int):
-        self.combatants[comb_id].ability_dict[ability_name] = Ability(left=maximum_uses,max=maximum_uses)
 
-    def set_combatant_abilities(self,cid: uuid.UUID,ab_dict:dict):
+    def set_combatant_abilities(self,cid: uuid.UUID,ab_list:list):
         combatant = self.get_combatant_by_id(cid)
-        combatant.ability_dict = ab_dict
+        combatant.ability_list = ab_list
 
     def get_combatant_abilities(self,cid: uuid.UUID):
         combatant = self.get_combatant_by_id(cid)
-        return combatant.ability_dict
+        return combatant.ability_list
 
     def remove_ability(self, cid, ability_name):
         combatant = self.get_combatant_by_id(cid)
-        del combatant.ability_dict[ability_name]
+        combatant.ability_list = [a for a in combatant.ability_list if a.name != ability_name]
+        #del combatant.ability_dict[ability_name]
 
     def regain_ability(self,comb_id: uuid.UUID,ability_name:str):
         combatant = self.combatants[comb_id]
-        if combatant.ability_dict[ability_name].left < combatant.ability_dict[ability_name].max:
-                combatant.ability_dict[ability_name].left += 1
+        ability = combatant.get_ability(ability_name)
+        if ability.left < ability.max:
+            ability.left +=1
 
     def use_ability(self,comb_id: uuid.UUID,ability_name:str):
         combatant = self.combatants[comb_id]
-        if combatant.ability_dict[ability_name].left >0:
-                combatant.ability_dict[ability_name].left -= 1
+        ability = combatant.get_ability(ability_name)
+        if ability.left >0:
+            ability.left -= 1
+
 
     def set_combatant_conditions(self,comb_id: uuid.UUID, conditions: list):
         combatant = self.get_combatant_by_id(comb_id)
@@ -346,7 +348,7 @@ class CombatManager:
             }
 
             comb["ability_dict"] = {
-                name: Ability(**data)
+                name: Ability(name=name, **{k: v for k, v in data.items() if k != "name"})
                 for name, data in comb["ability_dict"].items()
             }
 
@@ -356,6 +358,10 @@ class CombatManager:
 
 # Methods past this line are in a holding pattern. They aren't used and are up for deletion
 # ----------------------------------------------------------------------------------------------
+
+    def add_ability(self,comb_id: uuid.UUID,ability_name: str, maximum_uses: int):
+        self.combatants[comb_id].ability_dict[ability_name] = Ability(name=ability_name,left=maximum_uses,max=maximum_uses)
+
 
 
     def sort_by_initiative(self):

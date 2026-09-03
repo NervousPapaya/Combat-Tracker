@@ -108,18 +108,21 @@ class SetSpellSlotsCommand(Command):
     def undo(self):
         self.manager.set_caster_level(self.cid,caster_level=self.old_caster_level)
 
+
+
 class SetAbilitiesCommand(Command):
-    def __init__(self, manager, cid, new_ability_name, new_ability_uses):
+    def __init__(self, manager, cid, new_abilities:list):
         self.manager = manager
         self.cid = cid
-        self.new_ability_name = new_ability_name
-        self.new_ability_uses = new_ability_uses
+        self.new_abilities = new_abilities
+        self.old_abilities = None
 
     def execute(self):
-        self.manager.add_ability(self.cid,ability_name=self.new_ability_name,maximum_uses=self.new_ability_uses)
+        self.old_abilities = self.manager.get_combatant_abilities(self.cid)
+        self.manager.set_combatant_abilities(self.cid,self.new_abilities)
 
     def undo(self):
-        self.manager.remove_ability(self.cid,ability_name=self.new_ability_name)
+        self.manager.set_combatant_abilities(self.cid,self.old_abilities)
 
 class SetConditionsCommand(Command):
     def __init__(self, manager, cid, new_conditions):
@@ -289,3 +292,18 @@ class SetEncounterTitleCommand(Command):
     def undo(self):
         self.manager.set_encounter_title(self.old_title)
 
+
+
+#Deprecated and should be removed following testing. Supplanted by the succeeding command
+class SetAbilityCommand(Command):
+    def __init__(self, manager, cid, new_ability_name, new_ability_uses):
+        self.manager = manager
+        self.cid = cid
+        self.new_ability_name = new_ability_name
+        self.new_ability_uses = new_ability_uses
+
+    def execute(self):
+        self.manager.add_ability(self.cid,ability_name=self.new_ability_name,maximum_uses=self.new_ability_uses)
+
+    def undo(self):
+        self.manager.remove_ability(self.cid,ability_name=self.new_ability_name)

@@ -1,8 +1,9 @@
 from services.maths import is_whole_number
 from models.combatant import Combatant
 
-def abilities_to_list(ab_dict):
-    return [(ability_name, ab_dict[ability_name].max, None) for ability_name in ab_dict]
+def abilities_to_sorted_list(ab_list:list):
+    sorted_ab_list =  sorted( ab_list, key = lambda a: a.name)
+    return [(ability.name, ability.max, None) for ability in sorted_ab_list]
 
 def spell_slots_to_list(spell_dict):
     return [(f"Level {lvl}", count, lvl) for lvl, count in spell_dict.items() if count > 0]
@@ -24,3 +25,6 @@ def format_conditions(combatant: Combatant):
 def format_initiative(x):
     return str(int(x)) if is_whole_number(x) else str(x)
 
+#---------------------- HOLDING -------------------
+#def abilities_to_list(ab_dict):
+#    return [(ability_name, ab_dict[ability_name].max, None) for ability_name in ab_dict]

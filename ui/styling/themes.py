@@ -23,7 +23,7 @@ QPushButton:pressed {
     background-color: #2f2f2f;
 }
 
-QLineEdit, QSpinBox, QTableWidget {
+QLineEdit, QSpinBox, QTableWidget, QListWidget {
     background-color: #3c3c3c;
     color: #f0f0f0;
     selection-background-color: #555555;
@@ -114,7 +114,7 @@ QPushButton:pressed {
     background-color: rgba(0, 0, 0, 0.15);
 }
 
-QLineEdit, QSpinBox, QTableWidget {
+QLineEdit, QSpinBox, QTableWidget, QListWidget {
     background-color: #ffffff;
     color: #000000;
 }

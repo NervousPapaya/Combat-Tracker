@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QTableWidgetItem
 from PySide6.QtGui import QColor, QFont
 
 from models.combatant import Combatant
-from services.formating import abilities_to_list, spell_slots_to_list, format_initiative, format_conditions
+from services.formating import abilities_to_sorted_list, spell_slots_to_list, format_initiative, format_conditions
 from ui.abilitywidget import AbilityTrackerWidget
 from ui.styling.color_themes import column_coloring_dark,column_coloring_light
 from commands.commands import DuplicateCombatantNTimesCommand,DuplicateCombatantCommand,DeleteCombatantCommand,DeleteMultipleCombatantsCommand
@@ -126,9 +126,9 @@ class CombatTableMapper:
             self.table.setItem(row_index, col, QTableWidgetItem())  # placeholder item, purely for background color
             self.set_ability_widget(row_index,col, combatant.id, spell_slots,True)
 
-        if combatant.ability_dict:
+        if combatant.ability_list:
             self.ensure_abilities_column()
-            abilities = sorted(abilities_to_list(combatant.ability_dict))
+            abilities = abilities_to_sorted_list(combatant.ability_list)
             col = self.col_index["Abilities"]
             self.table.setItem(row_index, col, QTableWidgetItem())  # placeholder item, purely for background color
             self.set_ability_widget(row_index, col,combatant.id, abilities)
@@ -411,7 +411,7 @@ class CombatTableMapper:
 
         # Now we render the abilities based on the data in the combat manager
         combatant = self.comb_manager.get_combatant_by_id(combatant_id)
-        abilities = sorted(abilities_to_list(combatant.ability_dict))
+        abilities = abilities_to_sorted_list(combatant.ability_list)
         col = self.col_index["Abilities"]
         self.table.setItem(clicked_row, col, QTableWidgetItem())  # placeholder item, purely for background color
         self.set_ability_widget(clicked_row, col, combatant_id, abilities)

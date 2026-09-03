@@ -380,7 +380,7 @@ class MainWindow(QMainWindow):
             spells_action = menu.addAction("Add/Remove Spell Slots")
             spells_action.triggered.connect(partial(self.open_spell_slots_dialogue,clicked_row))
 
-            abilities_action = menu.addAction("Add Ability")
+            abilities_action = menu.addAction("Add/Remove Abilities")
             abilities_action.triggered.connect(partial(self.open_abilities_dialogue,clicked_row))
 
             conditions_action = menu.addAction("Add/Remove Conditions")
@@ -450,14 +450,15 @@ class MainWindow(QMainWindow):
 
 
     def open_abilities_dialogue(self,clicked_row):
-        dialog = AbilityDialog(self)
+        combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
+        abilities = copy.deepcopy(self.comb_manager.get_combatant_abilities(combatant_id))
+        dialog = AbilityDialog(abilities,self)
 
         if dialog.exec():
             # First we update the combat manager with the data
-            ability_name, max_uses = dialog.get_data()
-            combatant_id = self.table_mapper.fetch_combatant_id(clicked_row)
+            ability_dict = dialog.get_data()
 
-            self.command_manager.do(SetAbilitiesCommand(self.comb_manager,combatant_id,ability_name,max_uses))
+            self.command_manager.do(SetAbilitiesCommand(self.comb_manager,combatant_id,ability_dict))
 
             self.table_mapper.draw_combatant_abilities(clicked_row,combatant_id)
 
@@ -611,17 +612,6 @@ class MainWindow(QMainWindow):
         #self.table_mapper.style_headers()
 
     #------------------------- HOLDING ----------------#
-    def give_combatant_spell_slots(self, row: int, level: int):
-        """This method exists to give a combatant in a certain row spell slots."""
-        #Checking that the row does not have an empty name
-        combatant_id = self.table_mapper.fetch_combatant_id(row)
-        self.comb_manager.set_caster_level(combatant_id,caster_level = level)
-
-    def give_combatant_ability(self, row: int, ability_name: str, maximum_uses: int):
-        """This method exists to give a combatant in a certain row an ability."""
-        #Checking that the row does not have an empty name
-        combatant_id = self.table_mapper.fetch_combatant_id(row)
-        self.comb_manager.add_ability(combatant_id,ability_name,maximum_uses)
 
 
 
